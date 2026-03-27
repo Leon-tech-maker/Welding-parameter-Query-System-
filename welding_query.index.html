@@ -1,0 +1,2183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>焊接参数查询系统</title>
+<style>
+/* ===== 全局重置 ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary: #e65c00;
+  --primary-dark: #c44b00;
+  --secondary: #f9a825;
+  --bg-dark: rgba(10,15,25,0.95);
+  --bg-card: rgba(20,30,50,0.90);
+  --bg-input: rgba(255,255,255,0.07);
+  --border: rgba(255,165,50,0.25);
+  --border-light: rgba(255,165,50,0.12);
+  --text: #f0e8d0;
+  --text-muted: #a09070;
+  --text-dim: #708090;
+  --success: #4caf50;
+  --success-bg: rgba(76,175,80,0.15);
+  --warning: #ff9800;
+  --warning-bg: rgba(255,152,0,0.15);
+  --info: #29b6f6;
+  --info-bg: rgba(41,182,246,0.12);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.5);
+  --shadow-card: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+body {
+  font-family: 'Microsoft YaHei', 'PingFang SC', 'Segoe UI', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  background: #080d18;
+  overflow-x: hidden;
+}
+
+/* ===== 背景 ===== */
+.bg-layer {
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    linear-gradient(135deg, rgba(8,13,24,0.92) 0%, rgba(20,12,5,0.88) 100%),
+    url('https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=1920&q=60') center/cover no-repeat;
+}
+.bg-glow {
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse 800px 400px at 15% 70%, rgba(230,92,0,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 600px 300px at 85% 20%, rgba(249,168,37,0.05) 0%, transparent 70%);
+  animation: glowPulse 8s ease-in-out infinite alternate;
+}
+@keyframes glowPulse { from { opacity: 0.5; } to { opacity: 1; } }
+
+/* ===== 布局 ===== */
+.app { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ===== 顶部导航 ===== */
+.topbar {
+  background: rgba(8,13,24,0.96);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  padding: 0 28px;
+  display: flex; align-items: center; gap: 16px;
+  height: 64px; position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.6);
+}
+
+.logo {
+  display: flex; align-items: center; gap: 12px;
+  text-decoration: none;
+}
+.logo-icon {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 0 16px rgba(230,92,0,0.4);
+}
+.logo-text { display: flex; flex-direction: column; }
+.logo-title { font-size: 16px; font-weight: 700; color: var(--secondary); letter-spacing: 0.5px; }
+.logo-sub { font-size: 10px; color: var(--text-muted); }
+
+.nav { display: flex; gap: 4px; margin-left: 20px; flex: 1; }
+.nav-btn {
+  padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--text-muted);
+  background: transparent; transition: all 0.25s;
+  display: flex; align-items: center; gap: 7px;
+  font-family: inherit;
+}
+.nav-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.nav-btn.active {
+  background: rgba(230,92,0,0.18);
+  color: var(--secondary);
+  border: 1px solid rgba(230,92,0,0.35);
+}
+.nav-btn .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: currentColor; opacity: 0.7;
+}
+
+.topbar-right {
+  display: flex; align-items: center; gap: 10px; margin-left: auto;
+  font-size: 12px; color: var(--text-muted);
+}
+.ver-tag {
+  background: rgba(249,168,37,0.12); border: 1px solid rgba(249,168,37,0.3);
+  color: var(--secondary); padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+}
+
+/* ===== 页面 ===== */
+.page { display: none; padding: 28px; max-width: 1500px; margin: 0 auto; width: 100%; animation: fadeIn 0.3s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ===== 页面标题 ===== */
+.page-header {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+.page-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(230,92,0,0.2), rgba(249,168,37,0.15));
+  border: 1px solid rgba(230,92,0,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 4px 16px rgba(230,92,0,0.2);
+}
+.page-title-block h2 { font-size: 20px; font-weight: 700; color: var(--text); }
+.page-title-block p { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+/* ===== 卡片 ===== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
+}
+
+/* ===== 查询布局 ===== */
+.query-layout { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
+
+/* ===== 输入面板 ===== */
+.input-panel { padding: 24px; }
+.panel-title {
+  font-size: 13px; font-weight: 600; color: var(--secondary);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 20px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-title::before {
+  content: ''; width: 3px; height: 14px;
+  background: var(--primary); border-radius: 2px; display: block;
+}
+
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block; font-size: 12px; font-weight: 600;
+  color: var(--text-muted); margin-bottom: 7px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.form-select {
+  width: 100%; padding: 10px 14px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: 13px; font-family: inherit;
+  cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23a09070' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+  padding-right: 32px;
+}
+.form-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230,92,0,0.15); }
+.form-select option { background: #1a2035; color: var(--text); }
+
+.query-btn {
+  width: 100%; padding: 13px;
+  background: linear-gradient(135deg, var(--primary), #ff7b1a);
+  border: none; border-radius: var(--radius-sm);
+  color: white; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.25s;
+  font-family: inherit;
+  box-shadow: 0 4px 16px rgba(230,92,0,0.3);
+  margin-top: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.query-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(230,92,0,0.45); }
+.query-btn:active { transform: none; }
+
+.reset-btn {
+  width: 100%; padding: 9px;
+  background: transparent; border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted); font-size: 12px;
+  cursor: pointer; transition: all 0.2s;
+  font-family: inherit; margin-top: 8px;
+}
+.reset-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+/* ===== 结果面板 ===== */
+.result-panel { padding: 24px; min-height: 400px; }
+.result-placeholder {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 350px;
+  color: var(--text-muted); text-align: center; gap: 12px;
+}
+.placeholder-icon { font-size: 52px; opacity: 0.3; }
+.placeholder-text { font-size: 14px; }
+.placeholder-hint { font-size: 12px; color: var(--text-dim); }
+
+/* ===== 结果卡片 ===== */
+.match-header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 20px; background: rgba(230,92,0,0.08);
+  border-radius: var(--radius-sm); margin-bottom: 20px;
+  border: 1px solid rgba(230,92,0,0.2);
+}
+.match-score {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 72px;
+}
+.match-score-num {
+  font-size: 28px; font-weight: 800;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.match-score-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; }
+.match-info { flex: 1; }
+.match-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.match-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.match-badge {
+  padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
+}
+.badge-excellent { background: var(--success-bg); color: var(--success); border: 1px solid rgba(76,175,80,0.3); }
+.badge-good { background: var(--warning-bg); color: var(--warning); border: 1px solid rgba(255,152,0,0.3); }
+.badge-fair { background: rgba(244,67,54,0.12); color: #ef5350; border: 1px solid rgba(244,67,54,0.3); }
+
+/* 参数网格 */
+.params-section { margin-bottom: 20px; }
+.params-section-title {
+  font-size: 11px; font-weight: 700; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+}
+.params-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border-light); }
+
+.params-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+
+.param-item {
+  background: var(--bg-input); border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  transition: border-color 0.2s;
+}
+.param-item:hover { border-color: rgba(230,92,0,0.3); }
+.param-item.highlight {
+  background: rgba(230,92,0,0.08);
+  border-color: rgba(230,92,0,0.3);
+}
+.param-label {
+  font-size: 10px; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: 5px;
+}
+.param-value {
+  font-size: 15px; font-weight: 700; color: var(--text);
+  line-height: 1.3;
+}
+.param-unit {
+  font-size: 10px; color: var(--text-muted);
+  font-weight: 400; margin-left: 3px;
+}
+
+/* 多匹配 */
+.multi-results { display: flex; flex-direction: column; gap: 16px; }
+.result-item { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.result-item-header {
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.03);
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; transition: background 0.2s;
+}
+.result-item-header:hover { background: rgba(255,255,255,0.06); }
+.result-item-body { padding: 16px; display: none; }
+.result-item-body.open { display: block; }
+
+/* ===== 弧焊特殊 ===== */
+.arc-result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+
+/* ===== 凸焊特殊 ===== */
+.proj-specs {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.spec-tag {
+  background: rgba(41,182,246,0.1); border: 1px solid rgba(41,182,246,0.25);
+  color: var(--info); padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+}
+
+/* ===== 原始数据页面 ===== */
+.db-tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+.db-tab {
+  padding: 8px 20px; border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted);
+  cursor: pointer; font-family: inherit; font-size: 13px;
+  transition: all 0.2s;
+}
+.db-tab.active {
+  background: rgba(230,92,0,0.15); color: var(--secondary);
+  border-color: rgba(230,92,0,0.4);
+}
+.db-tab:hover:not(.active) { background: rgba(255,255,255,0.04); color: var(--text); }
+
+.db-content { display: none; }
+.db-content.active { display: block; }
+
+.db-stats {
+  display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.stat-chip {
+  background: var(--bg-input); border: 1px solid var(--border-light);
+  border-radius: 6px; padding: 6px 14px;
+  font-size: 12px; color: var(--text-muted);
+}
+.stat-chip strong { color: var(--secondary); margin-left: 4px; }
+
+.db-filter {
+  display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;
+}
+.filter-select {
+  padding: 7px 12px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: 12px; font-family: inherit; cursor: pointer;
+  appearance: none;
+}
+.filter-select:focus { outline: none; border-color: var(--primary); }
+.filter-label { font-size: 12px; color: var(--text-muted); }
+
+.search-input {
+  padding: 7px 14px; flex: 1; min-width: 200px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: 12px; font-family: inherit;
+}
+.search-input::placeholder { color: var(--text-dim); }
+.search-input:focus { outline: none; border-color: var(--primary); }
+
+/* 表格 */
+.table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border-light); }
+.data-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px;
+}
+.data-table thead tr {
+  background: rgba(230,92,0,0.1);
+  border-bottom: 1px solid var(--border);
+}
+.data-table th {
+  padding: 10px 12px; text-align: left;
+  font-size: 10px; font-weight: 700; color: var(--secondary);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  white-space: nowrap;
+}
+.data-table tbody tr {
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.15s;
+}
+.data-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+.data-table tbody tr:last-child { border-bottom: none; }
+.data-table td {
+  padding: 9px 12px; color: var(--text); vertical-align: middle;
+  max-width: 220px;
+}
+.data-table td.key-col { color: var(--secondary); font-weight: 600; }
+.data-table td.num-col { color: var(--info); font-family: 'Courier New', monospace; }
+
+.table-pagination {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 4px 4px; font-size: 12px; color: var(--text-muted);
+}
+.pag-btn {
+  padding: 5px 14px; border-radius: var(--radius-sm);
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-muted); cursor: pointer; font-family: inherit;
+  font-size: 12px; transition: all 0.2s;
+}
+.pag-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--text); }
+.pag-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pag-info { flex: 1; }
+.pag-jump input {
+  width: 54px; padding: 4px 8px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text); font-size: 12px;
+  text-align: center;
+}
+.pag-jump input:focus { outline: none; border-color: var(--primary); }
+
+/* ===== 首页 ===== */
+.home-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 28px; }
+.home-card {
+  padding: 28px; cursor: pointer;
+  transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+}
+.home-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  border-color: rgba(230,92,0,0.45);
+}
+.home-card-icon {
+  width: 56px; height: 56px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; margin-bottom: 16px;
+}
+.icon-spot { background: linear-gradient(135deg, rgba(230,92,0,0.2), rgba(255,120,0,0.15)); border: 1px solid rgba(230,92,0,0.3); }
+.icon-arc { background: linear-gradient(135deg, rgba(41,182,246,0.18), rgba(3,155,229,0.12)); border: 1px solid rgba(41,182,246,0.3); }
+.icon-proj { background: linear-gradient(135deg, rgba(76,175,80,0.18), rgba(56,142,60,0.12)); border: 1px solid rgba(76,175,80,0.3); }
+.home-card h3 { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.home-card p { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+.home-card .count-badge {
+  display: inline-block; margin-top: 14px;
+  background: var(--bg-input); border: 1px solid var(--border-light);
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; color: var(--text-muted);
+}
+
+.welcome-banner {
+  padding: 28px 32px;
+  background: linear-gradient(135deg, rgba(230,92,0,0.08), rgba(249,168,37,0.05));
+  border: 1px solid rgba(230,92,0,0.2);
+  border-radius: var(--radius);
+  display: flex; align-items: center; gap: 20px;
+  margin-bottom: 28px;
+}
+.banner-icon { font-size: 44px; }
+.banner-text h2 { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+.banner-text p { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+.banner-stats { margin-left: auto; display: flex; gap: 24px; }
+.stat-item { text-align: center; }
+.stat-num { font-size: 26px; font-weight: 800; color: var(--secondary); }
+.stat-label { font-size: 11px; color: var(--text-muted); }
+
+/* ===== 响应式 ===== */
+@media (max-width: 1100px) {
+  .query-layout { grid-template-columns: 1fr; }
+  .home-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .topbar { padding: 0 16px; }
+  .page { padding: 16px; }
+  .nav-btn { padding: 6px 10px; font-size: 12px; }
+  .banner-stats { display: none; }
+}
+
+/* ===== 无结果 ===== */
+.no-result {
+  text-align: center; padding: 40px;
+  color: var(--text-muted); font-size: 14px;
+}
+.no-result-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+
+/* ===== 新增按钮 ===== */
+.add-btn {
+  padding: 7px 18px;
+  background: linear-gradient(135deg, var(--primary), #ff7b1a);
+  border: none; border-radius: var(--radius-sm);
+  color: white; font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; gap: 6px;
+  transition: all 0.2s;
+  box-shadow: 0 2px 10px rgba(230,92,0,0.3);
+  margin-left: auto;
+}
+.add-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(230,92,0,0.45); }
+
+/* ===== 模态弹窗 ===== */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+.modal-box {
+  background: rgba(18,26,46,0.98);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  width: 90%; max-width: 820px;
+  max-height: 88vh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.modal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-header h3 { font-size: 16px; font-weight: 700; color: var(--secondary); }
+.modal-close {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-muted); cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.modal-close:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+.modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-light);
+  display: flex; gap: 10px; justify-content: flex-end;
+}
+.modal-submit-btn {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, var(--primary), #ff7b1a);
+  border: none; border-radius: var(--radius-sm);
+  color: white; font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  transition: all 0.2s;
+}
+.modal-submit-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.modal-cancel-btn {
+  padding: 10px 20px;
+  background: transparent; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-muted);
+  font-size: 13px; cursor: pointer; font-family: inherit;
+  transition: all 0.2s;
+}
+.modal-cancel-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+/* 表单网格 */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.form-grid .form-group { margin-bottom: 0; }
+.form-input {
+  width: 100%; padding: 9px 12px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: 13px; font-family: inherit;
+  transition: border-color 0.2s;
+}
+.form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230,92,0,0.15); }
+.form-input::placeholder { color: var(--text-dim); }
+.form-section-title {
+  font-size: 11px; font-weight: 700; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin: 16px 0 12px; display: flex; align-items: center; gap: 8px;
+}
+.form-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border-light); }
+.form-section-title:first-child { margin-top: 0; }
+
+/* 成功提示 */
+.toast {
+  position: fixed; bottom: 32px; right: 32px; z-index: 2000;
+  background: rgba(76,175,80,0.95);
+  border: 1px solid rgba(76,175,80,0.4);
+  color: white; padding: 12px 20px; border-radius: 10px;
+  font-size: 14px; font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  animation: slideInRight 0.3s ease;
+  display: flex; align-items: center; gap: 8px;
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+</style>
+</head>
+<body>
+<div class="bg-layer"></div>
+<div class="bg-glow"></div>
+
+<div class="app">
+  <!-- 导航栏 -->
+  <nav class="topbar">
+    <div class="logo">
+      <div class="logo-icon">🔥</div>
+      <div class="logo-text">
+        <span class="logo-title">焊接参数查询系统</span>
+        <span class="logo-sub">Welding Parameter Query System</span>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="nav-btn active" onclick="showPage('home')" id="nav-home">
+        <span>🏠</span> 首页
+      </button>
+      <button class="nav-btn" onclick="showPage('spot')" id="nav-spot">
+        <span>⚡</span> 点焊
+      </button>
+      <button class="nav-btn" onclick="showPage('arc')" id="nav-arc">
+        <span>🌀</span> 弧焊
+      </button>
+      <button class="nav-btn" onclick="showPage('proj')" id="nav-proj">
+        <span>🔩</span> 凸焊
+      </button>
+      <button class="nav-btn" onclick="showPage('database')" id="nav-database">
+        <span>📋</span> 原始数据库
+      </button>
+    </div>
+
+    <div class="topbar-right">
+      <span>数据版本 1.3</span>
+      <span class="ver-tag">2026-03-24</span>
+    </div>
+  </nav>
+
+  <!-- 首页 -->
+  <div class="page active" id="page-home">
+    <div class="welcome-banner">
+      <div class="banner-icon">🔥</div>
+      <div class="banner-text">
+        <h2>焊接参数查询系统</h2>
+        <p>基于实测参数数据库，支持点焊、弧焊、凸焊三种焊接类型的参数智能查询与匹配<br>
+           选择焊接条件，系统自动匹配最佳工艺参数，助力高质量焊接生产</p>
+      </div>
+      <div class="banner-stats">
+        <div class="stat-item">
+          <div class="stat-num" id="stat-spot">—</div>
+          <div class="stat-label">点焊记录</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-arc">—</div>
+          <div class="stat-label">弧焊记录</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-proj">—</div>
+          <div class="stat-label">凸焊记录</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-grid">
+      <div class="card home-card" onclick="showPage('spot')">
+        <div class="home-card-icon icon-spot">⚡</div>
+        <h3>点焊参数查询</h3>
+        <p>根据材料类别、板材厚度、表面处理等条件，智能匹配点焊工艺参数，包括焊接电流、焊接时间、电极压力等关键参数。</p>
+        <span class="count-badge" id="home-spot-count">加载中...</span>
+      </div>
+      <div class="card home-card" onclick="showPage('arc')">
+        <div class="home-card-icon icon-arc">🌀</div>
+        <h3>弧焊参数查询</h3>
+        <p>支持 MIG、CO₂、TIG 等多种弧焊方式，根据材料和板厚选择对应焊接电流、电压、气体流量等参数推荐。</p>
+        <span class="count-badge" id="home-arc-count">加载中...</span>
+      </div>
+      <div class="card home-card" onclick="showPage('proj')">
+        <div class="home-card-icon icon-proj">🔩</div>
+        <h3>凸焊参数查询</h3>
+        <p>针对螺母、螺栓、圆环等凸焊件类型，根据材料和厚度快速查询焊接电流、焊接周期、电极力等工艺参数。</p>
+        <span class="count-badge" id="home-proj-count">加载中...</span>
+      </div>
+    </div>
+
+    <div class="card" style="padding:24px;">
+      <div class="panel-title">使用说明</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:4px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:20px;opacity:0.8">1️⃣</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">选择焊接类型</div>
+            <div style="font-size:12px;color:var(--text-muted);">点击上方导航或首页卡片，进入对应焊接类型的查询页面</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:20px;opacity:0.8">2️⃣</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">设置输入条件</div>
+            <div style="font-size:12px;color:var(--text-muted);">通过下拉菜单选择材料类别、板厚、表面处理等条件</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:20px;opacity:0.8">3️⃣</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">查看推荐参数</div>
+            <div style="font-size:12px;color:var(--text-muted);">系统自动匹配最佳参数，显示匹配度和所有工艺参数</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:20px;opacity:0.8">4️⃣</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">浏览原始数据</div>
+            <div style="font-size:12px;color:var(--text-muted);">在"原始数据库"页面查看所有数据，便于核对和补充</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 点焊页面 -->
+  <div class="page" id="page-spot">
+    <div class="page-header">
+      <div class="page-icon">⚡</div>
+      <div class="page-title-block">
+        <h2>点焊参数查询</h2>
+        <p>Spot Welding Parameter Query — 根据材料条件自动匹配实测参数</p>
+      </div>
+    </div>
+
+    <div class="query-layout">
+      <!-- 输入 -->
+      <div class="card input-panel">
+        <div class="panel-title">输入条件</div>
+
+        <div class="form-group">
+          <label class="form-label">材料类别</label>
+          <select class="form-select" id="spot-category" onchange="updateSpotOptions()">
+            <option value="">请选择材料类别</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">材料牌号 / 类型</label>
+          <select class="form-select" id="spot-material" onchange="updateSpotThickness()">
+            <option value="">请先选择材料类别</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">表面处理</label>
+          <select class="form-select" id="spot-surface" onchange="updateSpotThickness()">
+            <option value="">请先选择材料</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">板厚 T1 (mm)</label>
+          <select class="form-select" id="spot-t1" onchange="updateSpotT2()">
+            <option value="">请先选择表面处理</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">板厚 T2 (mm)</label>
+          <select class="form-select" id="spot-t2">
+            <option value="">请先选择 T1</option>
+          </select>
+        </div>
+
+        <button class="query-btn" onclick="querySpot()">🔍 查询匹配参数</button>
+        <button class="reset-btn" onclick="resetSpot()">↺ 重置条件</button>
+      </div>
+
+      <!-- 结果 -->
+      <div class="card result-panel" id="spot-result-panel" style="display:none;">
+        <div class="panel-title">查询结果</div>
+        <div class="result-placeholder" id="spot-placeholder" style="display:none;">
+          <div class="placeholder-icon">⚡</div>
+          <div class="placeholder-text">请设置输入条件后点击查询</div>
+          <div class="placeholder-hint">系统将自动匹配最接近的实测参数</div>
+        </div>
+        <div id="spot-result" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 弧焊页面 -->
+  <div class="page" id="page-arc">
+    <div class="page-header">
+      <div class="page-icon">🌀</div>
+      <div class="page-title-block">
+        <h2>弧焊参数查询</h2>
+        <p>Arc Welding Parameter Query — 支持 MIG / CO₂ / TIG 等焊接方式</p>
+      </div>
+    </div>
+
+    <div class="query-layout">
+      <!-- 输入 -->
+      <div class="card input-panel">
+        <div class="panel-title">输入条件</div>
+
+        <div class="form-group">
+          <label class="form-label">母材材料</label>
+          <select class="form-select" id="arc-material" onchange="updateArcMethods()">
+            <option value="">请选择母材材料</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">焊接方法</label>
+          <select class="form-select" id="arc-method" onchange="updateArcThickness()">
+            <option value="">请先选择母材</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">板厚范围 (mm)</label>
+          <select class="form-select" id="arc-thickness">
+            <option value="">请先选择焊接方法</option>
+          </select>
+        </div>
+
+        <button class="query-btn" onclick="queryArc()">🔍 查询匹配参数</button>
+        <button class="reset-btn" onclick="resetArc()">↺ 重置条件</button>
+      </div>
+
+      <!-- 结果 -->
+      <div class="card result-panel" id="arc-result-panel" style="display:none;">
+        <div class="panel-title">查询结果</div>
+        <div class="result-placeholder" id="arc-placeholder" style="display:none;">
+          <div class="placeholder-icon">🌀</div>
+          <div class="placeholder-text">请设置输入条件后点击查询</div>
+          <div class="placeholder-hint">根据材料和板厚匹配焊接工艺参数</div>
+        </div>
+        <div id="arc-result" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 凸焊页面 -->
+  <div class="page" id="page-proj">
+    <div class="page-header">
+      <div class="page-icon">🔩</div>
+      <div class="page-title-block">
+        <h2>凸焊参数查询</h2>
+        <p>Projection Welding Parameter Query — 螺母 / 螺栓 / 圆环等凸焊件</p>
+      </div>
+    </div>
+
+    <div class="query-layout">
+      <!-- 输入 -->
+      <div class="card input-panel">
+        <div class="panel-title">输入条件</div>
+
+        <div class="form-group">
+          <label class="form-label">凸焊件类型</label>
+          <select class="form-select" id="proj-category" onchange="updateProjMaterial()">
+            <option value="">请选择凸焊件类型</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">材料</label>
+          <select class="form-select" id="proj-material" onchange="updateProjThickness()">
+            <option value="">请先选择凸焊件类型</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">板厚 T1 (mm)</label>
+          <select class="form-select" id="proj-t1">
+            <option value="">请先选择材料</option>
+          </select>
+        </div>
+
+        <button class="query-btn" onclick="queryProj()">🔍 查询匹配参数</button>
+        <button class="reset-btn" onclick="resetProj()">↺ 重置条件</button>
+      </div>
+
+      <!-- 结果 -->
+      <div class="card result-panel" id="proj-result-panel" style="display:none;">
+        <div class="panel-title">查询结果</div>
+        <div class="result-placeholder" id="proj-placeholder" style="display:none;">
+          <div class="placeholder-icon">🔩</div>
+          <div class="placeholder-text">请设置输入条件后点击查询</div>
+          <div class="placeholder-hint">根据凸焊件规格匹配工艺参数</div>
+        </div>
+        <div id="proj-result" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 原始数据库页面 -->
+  <div class="page" id="page-database">
+    <div class="page-header">
+      <div class="page-icon">📋</div>
+      <div class="page-title-block">
+        <h2>原始参数数据库</h2>
+        <p>Raw Parameter Database — 浏览、筛选全部原始数据，便于核查和补充</p>
+      </div>
+    </div>
+
+    <div class="card" style="padding:24px;">
+      <div class="db-tabs">
+        <button class="db-tab active" onclick="switchDbTab('spot',this)">⚡ 点焊数据库</button>
+        <button class="db-tab" onclick="switchDbTab('arc',this)">🌀 弧焊数据库</button>
+        <button class="db-tab" onclick="switchDbTab('proj',this)">🔩 凸焊数据库</button>
+      </div>
+
+      <!-- 点焊数据库 -->
+      <div class="db-content active" id="db-spot">
+        <div class="db-stats" id="db-spot-stats"></div>
+        <div class="db-filter">
+          <span class="filter-label">材料类别：</span>
+          <select class="filter-select" id="db-spot-filter-cat" onchange="renderSpotTable()">
+            <option value="">全部</option>
+          </select>
+          <span class="filter-label">表面处理：</span>
+          <select class="filter-select" id="db-spot-filter-surf" onchange="renderSpotTable()">
+            <option value="">全部</option>
+          </select>
+          <input class="search-input" type="text" id="db-spot-search" placeholder="搜索材料、厚度..." oninput="renderSpotTable()">
+          <button class="add-btn" onclick="openAddModal('spot')">＋ 新增数据</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="db-spot-table">
+            <thead>
+              <tr>
+                <th>类别</th><th>材料</th><th>表面处理</th>
+                <th>T1(mm)</th><th>T2(mm)</th><th>总厚(mm)</th>
+                <th>电极直径(mm)</th><th>电极材料</th><th>电极力(kN)</th>
+                <th>预热电流</th><th>预热时间</th><th>冷却时间</th>
+                <th>焊接电流MFDC(kA)</th><th>焊接时间AC(cyc)</th><th>焊接时间MFDC(ms)</th>
+                <th>维持时间(ms)</th><th>压紧时间(ms)</th>
+                <th>回火电流</th><th>回火时间</th>
+                <th>熔核直径(mm)</th><th>冷却水流量(L/min)</th>
+              </tr>
+            </thead>
+            <tbody id="db-spot-tbody"></tbody>
+          </table>
+        </div>
+        <div class="table-pagination" id="db-spot-pag"></div>
+      </div>
+
+      <!-- 弧焊数据库 -->
+      <div class="db-content" id="db-arc">
+        <div class="db-stats" id="db-arc-stats"></div>
+        <div class="db-filter">
+          <span class="filter-label">材料：</span>
+          <select class="filter-select" id="db-arc-filter-mat" onchange="renderArcTable()">
+            <option value="">全部</option>
+          </select>
+          <span class="filter-label">焊接方法：</span>
+          <select class="filter-select" id="db-arc-filter-method" onchange="renderArcTable()">
+            <option value="">全部</option>
+          </select>
+          <input class="search-input" type="text" id="db-arc-search" placeholder="搜索材料、方法、厚度..." oninput="renderArcTable()">
+          <button class="add-btn" onclick="openAddModal('arc')">＋ 新增数据</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="db-arc-table">
+            <thead>
+              <tr>
+                <th>母材材料</th><th>焊接方法</th><th>板厚范围</th>
+                <th>焊丝材料</th><th>保护气体</th>
+                <th>电流/电压</th><th>焊接速度</th><th>导电嘴距离</th><th>备注</th>
+              </tr>
+            </thead>
+            <tbody id="db-arc-tbody"></tbody>
+          </table>
+        </div>
+        <div class="table-pagination" id="db-arc-pag"></div>
+      </div>
+
+      <!-- 凸焊数据库 -->
+      <div class="db-content" id="db-proj">
+        <div class="db-stats" id="db-proj-stats"></div>
+        <div class="db-filter">
+          <span class="filter-label">类型：</span>
+          <select class="filter-select" id="db-proj-filter-cat" onchange="renderProjTable()">
+            <option value="">全部</option>
+          </select>
+          <input class="search-input" type="text" id="db-proj-search" placeholder="搜索类型、材料..." oninput="renderProjTable()">
+          <button class="add-btn" onclick="openAddModal('proj')">＋ 新增数据</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="db-proj-table">
+            <thead>
+              <tr>
+                <th>类型</th><th>材料</th><th>强度等级</th><th>表面处理</th>
+                <th>T1(mm)</th><th>总厚(mm)</th><th>电极直径(mm)</th><th>电极力(kN)</th>
+                <th>焊接电流AC(kA)</th><th>焊接电流MFDC(kA)</th>
+                <th>焊接时间AC(ms)</th><th>焊接周期(cyc)</th><th>焊接时间MFDC(ms)</th>
+                <th>维持时间(ms)</th><th>压紧时间(ms)</th><th>熔核直径(mm)</th>
+              </tr>
+            </thead>
+            <tbody id="db-proj-tbody"></tbody>
+          </table>
+        </div>
+        <div class="table-pagination" id="db-proj-pag"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .app -->
+
+<!-- ===== 新增数据弹窗：点焊 ===== -->
+<div class="modal-overlay" id="modal-spot" style="display:none;" onclick="closeModalOutside(event,'modal-spot')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>⚡ 新增点焊数据</h3>
+      <button class="modal-close" onclick="closeModal('modal-spot')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section-title">基本信息</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">材料类别 *</label>
+          <input class="form-input" id="add-spot-category" placeholder="如：普强钢与镀锌钢">
+        </div>
+        <div class="form-group">
+          <label class="form-label">材料牌号 *</label>
+          <input class="form-input" id="add-spot-material" placeholder="如：低碳钢/IF钢">
+        </div>
+        <div class="form-group">
+          <label class="form-label">表面处理 *</label>
+          <input class="form-input" id="add-spot-surface" placeholder="如：裸板、GI、GA">
+        </div>
+        <div class="form-group">
+          <label class="form-label">T1 (mm) *</label>
+          <input class="form-input" id="add-spot-t1" type="number" step="0.1" placeholder="0.8">
+        </div>
+        <div class="form-group">
+          <label class="form-label">T2 (mm) *</label>
+          <input class="form-input" id="add-spot-t2" type="number" step="0.1" placeholder="0.8">
+        </div>
+        <div class="form-group">
+          <label class="form-label">总厚度 (mm)</label>
+          <input class="form-input" id="add-spot-totalThickness" type="number" step="0.1" placeholder="自动计算">
+        </div>
+      </div>
+
+      <div class="form-section-title">电极参数</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">电极直径 (mm)</label>
+          <input class="form-input" id="add-spot-electrodeDiameter" placeholder="6-11">
+        </div>
+        <div class="form-group">
+          <label class="form-label">电极材料</label>
+          <input class="form-input" id="add-spot-electrodeMaterial" placeholder="铬锆铜（CuCrZr）">
+        </div>
+        <div class="form-group">
+          <label class="form-label">电极力 (kN)</label>
+          <input class="form-input" id="add-spot-electrodeForce" placeholder="2.0–3.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">冷却水流量 (L/min)</label>
+          <input class="form-input" id="add-spot-waterFlow" placeholder="6-8">
+        </div>
+      </div>
+
+      <div class="form-section-title">焊接程序参数</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">预热电流</label>
+          <input class="form-input" id="add-spot-preHeatCurrent" placeholder="50%-70%">
+        </div>
+        <div class="form-group">
+          <label class="form-label">预热时间</label>
+          <input class="form-input" id="add-spot-preHeatTime" placeholder="20-30ms">
+        </div>
+        <div class="form-group">
+          <label class="form-label">冷却时间</label>
+          <input class="form-input" id="add-spot-coolTime" placeholder="50-200ms">
+        </div>
+        <div class="form-group">
+          <label class="form-label">压紧时间 (ms)</label>
+          <input class="form-input" id="add-spot-squeezeTime" placeholder="120">
+        </div>
+        <div class="form-group">
+          <label class="form-label">焊接电流 MFDC (kA) *</label>
+          <input class="form-input" id="add-spot-weldCurrentMFDC" placeholder="8.5–10.2">
+        </div>
+        <div class="form-group">
+          <label class="form-label">焊接时间 AC (cyc)</label>
+          <input class="form-input" id="add-spot-weldTimeAC" placeholder="10–14">
+        </div>
+        <div class="form-group">
+          <label class="form-label">焊接时间 MFDC (ms) *</label>
+          <input class="form-input" id="add-spot-weldTimeMFDC" placeholder="170–240">
+        </div>
+        <div class="form-group">
+          <label class="form-label">维持时间 (ms)</label>
+          <input class="form-input" id="add-spot-holdTime" placeholder="200">
+        </div>
+        <div class="form-group">
+          <label class="form-label">回火电流</label>
+          <input class="form-input" id="add-spot-temperCurrent" placeholder="50%-70%">
+        </div>
+        <div class="form-group">
+          <label class="form-label">回火时间</label>
+          <input class="form-input" id="add-spot-temperTime" placeholder="20%-30%">
+        </div>
+        <div class="form-group">
+          <label class="form-label">熔核直径 (mm)</label>
+          <input class="form-input" id="add-spot-nuggetDiameter" placeholder="5-10">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel-btn" onclick="closeModal('modal-spot')">取消</button>
+      <button class="modal-submit-btn" onclick="submitAddSpot()">✓ 保存新增数据</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 新增数据弹窗：弧焊 ===== -->
+<div class="modal-overlay" id="modal-arc" style="display:none;" onclick="closeModalOutside(event,'modal-arc')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>🌀 新增弧焊数据</h3>
+      <button class="modal-close" onclick="closeModal('modal-arc')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">母材材料 *</label>
+          <input class="form-input" id="add-arc-material" placeholder="如：低碳钢、镀锌板">
+        </div>
+        <div class="form-group">
+          <label class="form-label">焊接方法 *</label>
+          <input class="form-input" id="add-arc-method" placeholder="如：MIG焊接、CO2焊接">
+        </div>
+        <div class="form-group">
+          <label class="form-label">板厚范围 *</label>
+          <input class="form-input" id="add-arc-thickness" placeholder="如：1.0-3.0mm">
+        </div>
+        <div class="form-group">
+          <label class="form-label">焊丝材料</label>
+          <input class="form-input" id="add-arc-wireMaterial" placeholder="如：ER50-6（φ1.2mm）">
+        </div>
+        <div class="form-group">
+          <label class="form-label">保护气体</label>
+          <input class="form-input" id="add-arc-gasType" placeholder="如：80%Ar+20%CO₂">
+        </div>
+        <div class="form-group">
+          <label class="form-label">电流/电压 *</label>
+          <input class="form-input" id="add-arc-currentVoltage" placeholder="如：120-160A/20-22V">
+        </div>
+        <div class="form-group">
+          <label class="form-label">焊接速度</label>
+          <input class="form-input" id="add-arc-speed" placeholder="如：30-50cm/min">
+        </div>
+        <div class="form-group">
+          <label class="form-label">导电嘴距离 (mm)</label>
+          <input class="form-input" id="add-arc-wireExtension" placeholder="10-15mm">
+        </div>
+        <div class="form-group">
+          <label class="form-label">备注</label>
+          <input class="form-input" id="add-arc-note" placeholder="可选">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel-btn" onclick="closeModal('modal-arc')">取消</button>
+      <button class="modal-submit-btn" onclick="submitAddArc()">✓ 保存新增数据</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 新增数据弹窗：凸焊 ===== -->
+<div class="modal-overlay" id="modal-proj" style="display:none;" onclick="closeModalOutside(event,'modal-proj')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>🔩 新增凸焊数据</h3>
+      <button class="modal-close" onclick="closeModal('modal-proj')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section-title">基本信息</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">凸焊件类型 *</label>
+          <input class="form-input" id="add-proj-category" placeholder="如：螺母 M8">
+        </div>
+        <div class="form-group">
+          <label class="form-label">材料 *</label>
+          <input class="form-input" id="add-proj-material" placeholder="如：低碳钢（IF钢）">
+        </div>
+        <div class="form-group">
+          <label class="form-label">强度等级</label>
+          <input class="form-input" id="add-proj-strength" placeholder="如：8.8">
+        </div>
+        <div class="form-group">
+          <label class="form-label">表面处理</label>
+          <input class="form-input" id="add-proj-surface" placeholder="如：电镀锌">
+        </div>
+        <div class="form-group">
+          <label class="form-label">T1 (mm) *</label>
+          <input class="form-input" id="add-proj-t1" type="number" step="0.1" placeholder="1.2">
+        </div>
+        <div class="form-group">
+          <label class="form-label">T2 (mm)</label>
+          <input class="form-input" id="add-proj-t2" type="number" step="0.1" placeholder="1.2">
+        </div>
+        <div class="form-group">
+          <label class="form-label">总厚度 (mm)</label>
+          <input class="form-input" id="add-proj-totalThickness" type="number" step="0.1" placeholder="2.4">
+        </div>
+        <div class="form-group">
+          <label class="form-label">电极直径 (mm)</label>
+          <input class="form-input" id="add-proj-electrodeDiameter" placeholder="7">
+        </div>
+      </div>
+
+      <div class="form-section-title">焊接参数</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">电极力 (kN)</label>
+          <input class="form-input" id="add-proj-electrodeForce" placeholder="3.0–4.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">焊接电流 AC (kA) *</label>
+          <input class="form-input" id="add-proj-weldCurrentAC" placeholder="9.5–11.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">焊接电流 MFDC (kA) *</label>
+          <input class="form-input" id="add-proj-weldCurrentMFDC" placeholder="10–12">
+        </div>
+        <div class="form-group">
+          <label class="form-label">焊接时间 AC (ms)</label>
+          <input class="form-input" id="add-proj-weldTimeAC" placeholder="160">
+        </div>
+        <div class="form-group">
+          <label class="form-label">焊接周期 (cyc)</label>
+          <input class="form-input" id="add-proj-weldCycle" placeholder="16–20">
+        </div>
+        <div class="form-group">
+          <label class="form-label">焊接时间 MFDC (ms)</label>
+          <input class="form-input" id="add-proj-weldTimeMFDC" placeholder="30–60">
+        </div>
+        <div class="form-group">
+          <label class="form-label">维持时间 (ms)</label>
+          <input class="form-input" id="add-proj-holdTime" placeholder="20">
+        </div>
+        <div class="form-group">
+          <label class="form-label">压紧时间 (ms)</label>
+          <input class="form-input" id="add-proj-squeezeTime" placeholder="9">
+        </div>
+        <div class="form-group">
+          <label class="form-label">熔核直径 (mm)</label>
+          <input class="form-input" id="add-proj-nuggetDiameter" placeholder="9–14">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel-btn" onclick="closeModal('modal-proj')">取消</button>
+      <button class="modal-submit-btn" onclick="submitAddProj()">✓ 保存新增数据</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// 数据库
+// =============================================
+const SPOT_DATA = [{"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "裸板", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "6.2–7.9", "weldTimeAC": "7–11", "weldTimeMFDC": "130–190", "holdTime": "200", "squeezeTime": "104", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "裸板", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.2–8.9", "weldTimeAC": "8–12", "weldTimeMFDC": "150–210", "holdTime": "200", "squeezeTime": "112", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "裸板", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "8.5–10.2", "weldTimeAC": "10–14", "weldTimeMFDC": "170–240", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "裸板", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "10.2–11.9", "weldTimeAC": "11–15", "weldTimeMFDC": "190–260", "holdTime": "200", "squeezeTime": "128", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "裸板", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "11.9–13.6", "weldTimeAC": "12–16", "weldTimeMFDC": "210–280", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "裸板", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "12.8–15.3", "weldTimeAC": "13–17", "weldTimeMFDC": "230–300", "holdTime": "200", "squeezeTime": "160", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "裸板", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "8.5–10.2", "weldTimeAC": "10–14", "weldTimeMFDC": "170–240", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "裸板", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "10.5–12.2", "weldTimeAC": "12–16", "weldTimeMFDC": "190–260", "holdTime": "200", "squeezeTime": "132", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "裸板", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "11.9–13.6", "weldTimeAC": "12–16", "weldTimeMFDC": "210–280", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GI(电镀锌/热镀锌)", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "6.6–8.3", "weldTimeAC": "7–11", "weldTimeMFDC": "140–200", "holdTime": "200", "squeezeTime": "104", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GI(电镀锌/热镀锌)", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.6–9.4", "weldTimeAC": "8–12", "weldTimeMFDC": "160–220", "holdTime": "200", "squeezeTime": "112", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "8.9–10.6", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "10.6–12.3", "weldTimeAC": "11–15", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "128", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "12.3–14.0", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GI(电镀锌/热镀锌)", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "13.2–15.7", "weldTimeAC": "13–17", "weldTimeMFDC": "240–310", "holdTime": "200", "squeezeTime": "160", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GI(电镀锌/热镀锌)", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "8.9–10.6", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "10.9–12.6", "weldTimeAC": "12–16", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "132", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "12.3–14.0", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GA(镀锌铁)", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "6.5–8.2", "weldTimeAC": "7–11", "weldTimeMFDC": "135–195", "holdTime": "200", "squeezeTime": "104", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GA(镀锌铁)", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.5–9.2", "weldTimeAC": "8–12", "weldTimeMFDC": "155–215", "holdTime": "200", "squeezeTime": "112", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GA(镀锌铁)", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "8.8–10.5", "weldTimeAC": "10–14", "weldTimeMFDC": "175–245", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GA(镀锌铁)", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "10.5–12.2", "weldTimeAC": "11–15", "weldTimeMFDC": "195–265", "holdTime": "200", "squeezeTime": "128", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GA(镀锌铁)", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "12.1–13.8", "weldTimeAC": "12–16", "weldTimeMFDC": "215–285", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GA(镀锌铁)", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "13.0–15.5", "weldTimeAC": "13–17", "weldTimeMFDC": "235–305", "holdTime": "200", "squeezeTime": "160", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GA(镀锌铁)", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "8.8–10.5", "weldTimeAC": "10–14", "weldTimeMFDC": "175–245", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GA(镀锌铁)", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "10.7–12.4", "weldTimeAC": "12–16", "weldTimeMFDC": "195–265", "holdTime": "200", "squeezeTime": "132", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "普强钢与镀锌钢", "material": "低碳钢/IF钢/HSLA(普强)", "surface": "GA(镀锌铁)", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "12.1–13.8", "weldTimeAC": "12–16", "weldTimeMFDC": "215–285", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "6.9–8.6", "weldTimeAC": "7–11", "weldTimeMFDC": "140–200", "holdTime": "200", "squeezeTime": "104", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.9–9.6", "weldTimeAC": "8–12", "weldTimeMFDC": "160–220", "holdTime": "200", "squeezeTime": "112", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "9.2–10.9", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "10.9–12.6", "weldTimeAC": "11–15", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "128", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "12.8–14.5", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "14.0–16.6", "weldTimeAC": "13–17", "weldTimeMFDC": "240–310", "holdTime": "200", "squeezeTime": "160", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "9.2–10.9", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "11.1–12.8", "weldTimeAC": "12–16", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "132", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "12.8–14.5", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.3–9.0", "weldTimeAC": "7–11", "weldTimeMFDC": "140–200", "holdTime": "200", "squeezeTime": "104", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "8.3–10.0", "weldTimeAC": "8–12", "weldTimeMFDC": "160–220", "holdTime": "200", "squeezeTime": "112", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "9.6–11.3", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "11.3–13.0", "weldTimeAC": "11–15", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "128", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "13.2–14.9", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "14.5–17.0", "weldTimeAC": "13–17", "weldTimeMFDC": "240–310", "holdTime": "200", "squeezeTime": "160", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "9.6–11.3", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "11.5–13.2", "weldTimeAC": "12–16", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "132", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI(电镀锌/热镀锌)", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "13.2–14.9", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.9–9.6", "weldTimeAC": "7–11", "weldTimeMFDC": "140–200", "holdTime": "200", "squeezeTime": "104", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "9.0–10.7", "weldTimeAC": "8–12", "weldTimeMFDC": "160–220", "holdTime": "200", "squeezeTime": "112", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "10.4–12.1", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "12.1–13.8", "weldTimeAC": "11–15", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "128", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "14.1–15.8", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "15.6–18.1", "weldTimeAC": "13–17", "weldTimeMFDC": "240–310", "holdTime": "200", "squeezeTime": "160", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "10.4–12.1", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "12.6–14.3", "weldTimeAC": "12–16", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "132", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "14.1–15.8", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.3–9.0", "weldTimeAC": "7–11", "weldTimeMFDC": "140–200", "holdTime": "200", "squeezeTime": "104", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "8.3–10.0", "weldTimeAC": "8–12", "weldTimeMFDC": "160–220", "holdTime": "200", "squeezeTime": "112", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "9.6–11.3", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "11.3–13.0", "weldTimeAC": "11–15", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "128", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "13.2–14.9", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "14.5–16.2", "weldTimeAC": "13–17", "weldTimeMFDC": "240–310", "holdTime": "200", "squeezeTime": "160", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "9.6–11.3", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "11.5–13.2", "weldTimeAC": "12–16", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "132", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "GI/GA", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "13.2–14.9", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "8.3–10.0", "weldTimeAC": "7–11", "weldTimeMFDC": "140–200", "holdTime": "200", "squeezeTime": "104", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "9.6–11.3", "weldTimeAC": "8–12", "weldTimeMFDC": "160–220", "holdTime": "200", "squeezeTime": "112", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "11.0–12.7", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "12.8–14.5", "weldTimeAC": "11–15", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "128", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "14.9–16.6", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "16.3–18.9", "weldTimeAC": "13–17", "weldTimeMFDC": "240–310", "holdTime": "200", "squeezeTime": "160", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "11.0–12.7", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "13.0–14.7", "weldTimeAC": "12–16", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "132", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "14.9–16.6", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "9.0–10.7", "weldTimeAC": "7–11", "weldTimeMFDC": "140–200", "holdTime": "200", "squeezeTime": "104", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "10.5–12.2", "weldTimeAC": "8–12", "weldTimeMFDC": "160–220", "holdTime": "200", "squeezeTime": "112", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "11.9–13.6", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "13.9–15.5", "weldTimeAC": "11–15", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "128", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "16.1–17.9", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "17.9–20.4", "weldTimeAC": "13–17", "weldTimeMFDC": "240–310", "holdTime": "200", "squeezeTime": "160", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "11.9–13.6", "weldTimeAC": "10–14", "weldTimeMFDC": "180–250", "holdTime": "200", "squeezeTime": "120", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "14.0–15.7", "weldTimeAC": "12–16", "weldTimeMFDC": "200–270", "holdTime": "200", "squeezeTime": "132", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "AHSS高强钢", "material": "先进高强钢(AHSS)", "surface": "裸板/GA", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "16.1–17.9", "weldTimeAC": "12–16", "weldTimeMFDC": "220–290", "holdTime": "200", "squeezeTime": "144", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "5.1–6.8", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "98", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "5.5–7.2", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "102", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "6.4–8.1", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "106", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.2–8.9", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "110", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.7–9.8", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "118", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "8.5–10.6", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "126", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "6.4–8.1", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "106", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.2–8.9", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "110", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.7–9.8", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "118", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "5.1–6.8", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "98", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "5.5–7.2", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "102", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "6.4–8.1", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "106", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.2–8.9", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "110", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.7–9.8", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "118", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "8.5–10.6", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "126", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "6.4–8.1", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "106", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.2–8.9", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "110", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "不锈钢", "material": "不锈钢", "surface": "2B/NO.1", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "铬锆铜（CuCrZr）/弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "7.7–9.8", "weldTimeAC": "8–14", "weldTimeMFDC": "160–260", "holdTime": "200", "squeezeTime": "118", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "18–26", "weldTimeAC": "90–160", "weldTimeMFDC": "90–160", "holdTime": "200", "squeezeTime": "92", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "18–26", "weldTimeAC": "90–160", "weldTimeMFDC": "90–160", "holdTime": "200", "squeezeTime": "96", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "18–26", "weldTimeAC": "90–160", "weldTimeMFDC": "90–160", "holdTime": "200", "squeezeTime": "100", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "22–32", "weldTimeAC": "120–200", "weldTimeMFDC": "120–200", "holdTime": "200", "squeezeTime": "104", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "22–32", "weldTimeAC": "120–200", "weldTimeMFDC": "120–200", "holdTime": "200", "squeezeTime": "110", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "26–38", "weldTimeAC": "140–240", "weldTimeMFDC": "140–240", "holdTime": "200", "squeezeTime": "116", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "18–26", "weldTimeAC": "90–160", "weldTimeMFDC": "90–160", "holdTime": "200", "squeezeTime": "100", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "22–32", "weldTimeAC": "120–200", "weldTimeMFDC": "120–200", "holdTime": "200", "squeezeTime": "106", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "1.2", "t2": "2.0", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.6–4.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "22–32", "weldTimeAC": "120–200", "weldTimeMFDC": "120–200", "holdTime": "200", "squeezeTime": "110", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "0.6", "t2": "0.6", "totalThickness": "1.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.5–2.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "18–26", "weldTimeAC": "90–160", "weldTimeMFDC": "90–160", "holdTime": "200", "squeezeTime": "92", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "1.8–2.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "18–26", "weldTimeAC": "90–160", "weldTimeMFDC": "90–160", "holdTime": "200", "squeezeTime": "96", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "1.0", "t2": "1.0", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "18–26", "weldTimeAC": "90–160", "weldTimeMFDC": "90–160", "holdTime": "200", "squeezeTime": "100", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.6–3.8", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "22–32", "weldTimeAC": "120–200", "weldTimeMFDC": "120–200", "holdTime": "200", "squeezeTime": "104", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "1.6", "t2": "1.6", "totalThickness": "3.2", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "3.5–4.6", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "22–32", "weldTimeAC": "120–200", "weldTimeMFDC": "120–200", "holdTime": "200", "squeezeTime": "110", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "2.0", "t2": "2.0", "totalThickness": "4.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "4.5–5.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "26–38", "weldTimeAC": "140–240", "weldTimeMFDC": "140–240", "holdTime": "200", "squeezeTime": "116", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "0.8", "t2": "1.2", "totalThickness": "2.0", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.3–3.5", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "18–26", "weldTimeAC": "90–160", "weldTimeMFDC": "90–160", "holdTime": "200", "squeezeTime": "100", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}, {"category": "铝合金", "material": "铝合金", "surface": "裸板/涂油", "t1": "1.0", "t2": "1.6", "totalThickness": "2.6", "electrodeDiameter": "6-11", "electrodeMaterial": "弥散强化铜（氧化铝铜，CuAl₂O₃）", "electrodeForce": "2.9–3.7", "preHeatCurrent": "50%-70%", "preHeatTime": "20-30%%小于主脉冲", "coolTime": "50-200ms", "weldCurrentMFDC": "22–32", "weldTimeAC": "120–200", "weldTimeMFDC": "120–200", "holdTime": "200", "squeezeTime": "106", "temperCurrent": "50%-70%", "temperTime": "20%-30%", "nuggetDiameter": "5-10", "waterFlow": "6-8"}];
+const ARC_DATA = [{"material": "低碳钢", "method": "MIG焊接", "thickness": "0.8-3.0mm", "wireMaterial": "ER50-6（φ0.8-1.2mm）", "gasType": "80%Ar+20%CO₂（15-20L/min）", "currentVoltage": "0.8mm: 80-120A/18-20V", "speed": "30-50cm/min", "wireExtension": "10-15mm", "note": null}, {"material": "低碳钢", "method": "MIG焊接", "thickness": "0.8-3.0mm", "wireMaterial": "ER50-6（φ0.8-1.2mm）", "gasType": "80%Ar+20%CO₂（15-20L/min）", "currentVoltage": "3.0mm: 180-240A/22-24V", "speed": "30-50cm/min", "wireExtension": "10-15mm", "note": null}, {"material": "低碳钢", "method": "CO2焊接", "thickness": "1.0-3.0mm", "wireMaterial": "ER50-6（φ1.0-1.2mm）", "gasType": "100%CO₂（18-25L/min）", "currentVoltage": "1.0mm: 100-140A/19-21V", "speed": "25-40cm/min", "wireExtension": "10-15mm", "note": null}, {"material": "低碳钢", "method": "CO2焊接", "thickness": "1.0-3.0mm", "wireMaterial": "ER50-6（φ1.0-1.2mm）", "gasType": "100%CO₂（18-25L/min）", "currentVoltage": "3.0mm: 220-260A/24-26V", "speed": "25-40cm/min", "wireExtension": "10-15mm", "note": null}, {"material": "低碳钢", "method": "CO2焊接", "thickness": "4.0-8.0mm", "wireMaterial": "ER70S-6（φ1.6mm）", "gasType": "100%CO₂（20-30L/min）", "currentVoltage": "4.0mm: 200-280A/23-25V", "speed": "15-25cm/min", "wireExtension": "10-15mm", "note": null}, {"material": "低碳钢", "method": "CO2焊接", "thickness": "4.0-8.0mm", "wireMaterial": "ER70S-6（φ1.6mm）", "gasType": "100%CO₂（20-30L/min）", "currentVoltage": "8.0mm: 280-320A/26-28V", "speed": "15-25cm/min", "wireExtension": "10-15mm", "note": null}, {"material": "低碳钢", "method": "TIG 焊接（钨极惰性气体保护焊）", "thickness": "0.5-2.0mm", "wireMaterial": "ER50-6（φ1.2-1.6mm）", "gasType": "100%Ar（8-12L/min）", "currentVoltage": "0.5mm: 50-80A/10-12V", "speed": "20-30cm/min", "wireExtension": "10-15mm", "note": "铈钨极（φ1.6-2.4mm）"}, {"material": "低碳钢", "method": "TIG 焊接（钨极惰性气体保护焊）", "thickness": "0.5-2.0mm", "wireMaterial": "ER50-6（φ1.2-1.6mm）", "gasType": "100%Ar（8-12L/min）", "currentVoltage": "2.0mm: 100-150A/12-14V", "speed": "15-20cm/min", "wireExtension": "10-15mm", "note": "锆钨极（φ2.4-3.2mm）"}, {"material": "低碳钢", "method": "TIG 焊接（钨极惰性气体保护焊）", "thickness": "3.0-5.0mm", "wireMaterial": "ER70S-6（φ1.6-2.0mm）", "gasType": "100%Ar（10-15L/min）", "currentVoltage": "3.0mm: 120-180A/14-16V", "speed": "20-30cm/min", "wireExtension": "10-15mm", "note": null}, {"material": "低碳钢", "method": "TIG 焊接（钨极惰性气体保护焊）", "thickness": "3.0-5.0mm", "wireMaterial": "ER70S-6（φ1.6-2.0mm）", "gasType": "100%Ar（10-15L/min）", "currentVoltage": "5.0mm: 180-220A/16-18V", "speed": "15-20cm/min", "wireExtension": "10-15mm", "note": null}, {"material": "镀锌板", "method": "MIG 电弧钎焊", "thickness": "0.8-1.5mm", "wireMaterial": "CuSi3（φ1.0mm）", "gasType": "100%Ar（18-22L/min）", "currentVoltage": "0.8mm: 100-130A/15-17V", "speed": "40-60cm/min", "wireExtension": "10-15mm", "note": "前倾 10-15°"}, {"material": "镀锌板", "method": "MIG 电弧钎焊", "thickness": "0.8-1.5mm", "wireMaterial": "CuSi3（φ1.0mm）", "gasType": "95%Ar+5%CO₂（20-25L/min）", "currentVoltage": "1.5mm: 120-160A/16-18V", "speed": "30-50cm/min", "wireExtension": "10-15mm", "note": "垂直施焊"}, {"material": "镀锌板", "method": "MIG 电弧钎焊", "thickness": "2.0-3.0mm", "wireMaterial": "ER5356（φ1.2mm）", "gasType": "100%Ar（18-22L/min）", "currentVoltage": "2.0mm: 140-170A/17-19V", "speed": "40-60cm/min", "wireExtension": "10-15mm", "note": "脉冲频率 50-100Hz"}, {"material": "镀锌板", "method": "MIG 电弧钎焊", "thickness": "2.0-3.0mm", "wireMaterial": "ER5356（φ1.2mm）", "gasType": "95%Ar+5%CO₂（20-25L/min）", "currentVoltage": "3.0mm: 180-220A/18-20V", "speed": "30-50cm/min", "wireExtension": "10-15mm", "note": "脉冲频率 50-100Hz"}, {"material": "镀锌板", "method": "CO2焊接", "thickness": "1.0 - 2.0mm", "wireMaterial": "EMG - 1Z（φ1.2mm）", "gasType": "100%CO₂（15 - 25L/min）", "currentVoltage": "1.0mm: 90 - 130A/18 - 20V", "speed": "30 - 40cm/min", "wireExtension": "10-15mm", "note": "直流正接，减少气孔"}, {"material": "镀锌板", "method": "CO2焊接", "thickness": "1.0 - 2.0mm", "wireMaterial": "EMG - 1Z（φ1.2mm）", "gasType": "100%CO₂（15 - 25L/min）", "currentVoltage": "2.0mm: 140 - 180A/20 - 22V", "speed": "25 - 35cm/min", "wireExtension": "10-15mm", "note": "直流正接，减少气孔"}, {"material": "镀锌板", "method": "CO2焊接", "thickness": "3.0 - 4.0mm", "wireMaterial": "DW - 1SZ（φ1.2mm）", "gasType": "100%CO₂（15 - 25L/min）", "currentVoltage": "3.0mm: 180 - 220A/22 - 24V", "speed": "30 - 40cm/min", "wireExtension": "10-15mm", "note": "直流正接，减少气孔"}, {"material": "镀锌板", "method": "CO2焊接", "thickness": "3.0 - 4.0mm", "wireMaterial": "DW - 1SZ（φ1.2mm）", "gasType": "100%CO₂（15 - 25L/min）", "currentVoltage": "4.0mm: 220 - 260A/24 - 26V", "speed": "25 - 35cm/min", "wireExtension": "10-15mm", "note": "直流正接，减少气孔"}];
+const PROJ_DATA = [{"category": "螺母 M5", "material": "低碳钢（IF钢）", "strength": "8.8", "surface": "电镀锌", "t1": "0.8", "t2": "0.8", "totalThickness": "1.6", "electrodeDiameter": "5", "electrodeForce": "1.5–2.5", "weldCurrentAC": "6.0–8.0", "weldCurrentMFDC": "6–8", "weldTimeAC": "120", "weldCycle": "12–15", "weldTimeMFDC": "20–40", "holdTime": "12", "squeezeTime": "6", "nuggetDiameter": "6–10"}, {"category": "螺母 M6", "material": "低碳钢（IF钢）", "strength": "8.8", "surface": "电镀锌", "t1": "1", "t2": "1", "totalThickness": "2", "electrodeDiameter": "6", "electrodeForce": "2.5–4.0", "weldCurrentAC": "8.0–10.0", "weldCurrentMFDC": "8–10", "weldTimeAC": "150", "weldCycle": "14–18", "weldTimeMFDC": "25–50", "holdTime": "18", "squeezeTime": "8", "nuggetDiameter": "8–12"}, {"category": "螺母 M8", "material": "低碳钢（IF钢）", "strength": "8.8", "surface": "电镀锌", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "7", "electrodeForce": "3.0–4.5", "weldCurrentAC": "9.5–11.5", "weldCurrentMFDC": "10–12", "weldTimeAC": "160", "weldCycle": "16–20", "weldTimeMFDC": "30–60", "holdTime": "20", "squeezeTime": "9", "nuggetDiameter": "9–14"}, {"category": "螺母 M10", "material": "低碳钢（IF钢）", "strength": "8.8", "surface": "电镀锌", "t1": "1.5", "t2": "1.5", "totalThickness": "3", "electrodeDiameter": "8", "electrodeForce": "4.0–5.5", "weldCurrentAC": "10.0–12.0", "weldCurrentMFDC": "12–15", "weldTimeAC": "180", "weldCycle": "18–22", "weldTimeMFDC": "40–80", "holdTime": "22", "squeezeTime": "10", "nuggetDiameter": "12–20"}, {"category": "螺母 M12", "material": "低碳钢（IF钢）", "strength": "10.9", "surface": "电镀锌", "t1": "1.8", "t2": "1.8", "totalThickness": "3.6", "electrodeDiameter": "9", "electrodeForce": "4.5–6.5", "weldCurrentAC": "11.5–13.5", "weldCurrentMFDC": "14–16", "weldTimeAC": "200", "weldCycle": "18–25", "weldTimeMFDC": "50–90", "holdTime": "24", "squeezeTime": "12", "nuggetDiameter": "14–22"}, {"category": "螺栓 M6", "material": "低碳钢（IF钢）", "strength": "8.8", "surface": "电镀锌", "t1": "1", "t2": "1", "totalThickness": "2", "electrodeDiameter": "6", "electrodeForce": "2.5–3.5", "weldCurrentAC": "8.0–9.5", "weldCurrentMFDC": "10–12", "weldTimeAC": "150", "weldCycle": "14–18", "weldTimeMFDC": "25–50", "holdTime": "20", "squeezeTime": "8", "nuggetDiameter": "8–12"}, {"category": "螺栓 M8", "material": "低碳钢（IF钢）", "strength": "8.8", "surface": "电镀锌", "t1": "1.2", "t2": "1.2", "totalThickness": "2.4", "electrodeDiameter": "7", "electrodeForce": "3.5–5.0", "weldCurrentAC": "10.0–12.0", "weldCurrentMFDC": "12–15", "weldTimeAC": "170", "weldCycle": "20–25", "weldTimeMFDC": "35–65", "holdTime": "20", "squeezeTime": "10", "nuggetDiameter": "9–15"}, {"category": "螺栓 M10", "material": "高强度低合金钢", "strength": "10.9", "surface": "镀锌", "t1": "1.8", "t2": "1.8", "totalThickness": "3.6", "electrodeDiameter": "9.5", "electrodeForce": "4.5–6.5", "weldCurrentAC": "13.0–15.0", "weldCurrentMFDC": "15–18", "weldTimeAC": "200", "weldCycle": "20–30", "weldTimeMFDC": "40–80", "holdTime": "24", "squeezeTime": "12", "nuggetDiameter": "15–25"}, {"category": "螺栓 M12", "material": "高强度低合金钢", "strength": "10.9", "surface": "镀锌", "t1": "2", "t2": "2", "totalThickness": "4", "electrodeDiameter": "10", "electrodeForce": "5.0–7.0", "weldCurrentAC": "14.0–16.0", "weldCurrentMFDC": "18–20", "weldTimeAC": "250", "weldCycle": "25–30", "weldTimeMFDC": "50–90", "holdTime": "28", "squeezeTime": "15", "nuggetDiameter": "18–28"}, {"category": "圆环 10-20mm", "material": "低碳钢（IF钢）", "strength": "8.8", "surface": "电镀锌", "t1": "2", "t2": "2", "totalThickness": "4", "electrodeDiameter": "10", "electrodeForce": "3.0–5.0", "weldCurrentAC": "8.0–10.0", "weldCurrentMFDC": "10–12", "weldTimeAC": "150", "weldCycle": "12–18", "weldTimeMFDC": "30–50", "holdTime": "18", "squeezeTime": "8", "nuggetDiameter": "8–15"}];
+
+// =============================================
+// 导航
+// =============================================
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+}
+
+// =============================================
+// 首页统计
+// =============================================
+function initHomeStats() {
+  document.getElementById('stat-spot').textContent = SPOT_DATA.length;
+  document.getElementById('stat-arc').textContent = ARC_DATA.length;
+  document.getElementById('stat-proj').textContent = PROJ_DATA.length;
+  document.getElementById('home-spot-count').textContent = SPOT_DATA.length + ' 条记录';
+  document.getElementById('home-arc-count').textContent = ARC_DATA.length + ' 条记录';
+  document.getElementById('home-proj-count').textContent = PROJ_DATA.length + ' 条记录';
+}
+
+// =============================================
+// 点焊 — 联动下拉
+// =============================================
+function initSpot() {
+  const cats = [...new Set(SPOT_DATA.map(r => r.category))];
+  const sel = document.getElementById('spot-category');
+  sel.innerHTML = '<option value="">请选择材料类别</option>';
+  cats.forEach(c => sel.add(new Option(c, c)));
+}
+
+function updateSpotOptions() {
+  const cat = document.getElementById('spot-category').value;
+  const filtered = cat ? SPOT_DATA.filter(r => r.category === cat) : [];
+  const mats = [...new Set(filtered.map(r => r.material))];
+  const surfs = [...new Set(filtered.map(r => r.surface))];
+
+  const mSel = document.getElementById('spot-material');
+  mSel.innerHTML = '<option value="">请选择材料牌号</option>';
+  mats.forEach(m => mSel.add(new Option(m, m)));
+
+  const sSel = document.getElementById('spot-surface');
+  sSel.innerHTML = '<option value="">请先选择材料</option>';
+
+  const t1Sel = document.getElementById('spot-t1');
+  t1Sel.innerHTML = '<option value="">请先选择表面处理</option>';
+  const t2Sel = document.getElementById('spot-t2');
+  t2Sel.innerHTML = '<option value="">请先选择 T1</option>';
+}
+
+function updateSpotThickness() {
+  const cat = document.getElementById('spot-category').value;
+  const mat = document.getElementById('spot-material').value;
+  let filtered = SPOT_DATA;
+  if (cat) filtered = filtered.filter(r => r.category === cat);
+  if (mat) filtered = filtered.filter(r => r.material === mat);
+
+  const surfs = [...new Set(filtered.map(r => r.surface))];
+  const sSel = document.getElementById('spot-surface');
+  sSel.innerHTML = '<option value="">请选择表面处理</option>';
+  surfs.forEach(s => sSel.add(new Option(s, s)));
+
+  document.getElementById('spot-t1').innerHTML = '<option value="">请先选择表面处理</option>';
+  document.getElementById('spot-t2').innerHTML = '<option value="">请先选择 T1</option>';
+}
+
+function updateSpotT2() {
+  const cat = document.getElementById('spot-category').value;
+  const mat = document.getElementById('spot-material').value;
+  const surf = document.getElementById('spot-surface').value;
+  const t1 = document.getElementById('spot-t1').value;
+
+  // Update surface dropdown if needed
+  if (!surf) {
+    let f = SPOT_DATA;
+    if (cat) f = f.filter(r => r.category === cat);
+    if (mat) f = f.filter(r => r.material === mat);
+    const surfs = [...new Set(f.map(r => r.surface))];
+    const sSel = document.getElementById('spot-surface');
+    if (sSel.options.length <= 1) {
+      sSel.innerHTML = '<option value="">请选择表面处理</option>';
+      surfs.forEach(s => sSel.add(new Option(s, s)));
+    }
+  }
+
+  let f = SPOT_DATA;
+  if (cat) f = f.filter(r => r.category === cat);
+  if (mat) f = f.filter(r => r.material === mat);
+  if (surf) f = f.filter(r => r.surface === surf);
+
+  const t1s = [...new Set(f.map(r => r.t1))].sort((a,b)=>parseFloat(a)-parseFloat(b));
+  const t1Sel = document.getElementById('spot-t1');
+  const curT1 = t1Sel.value;
+
+  // Only update if not already populated
+  if (t1Sel.options.length <= 1 || !surf) {
+    t1Sel.innerHTML = '<option value="">请选择 T1 厚度</option>';
+    t1s.forEach(t => t1Sel.add(new Option(t + ' mm', t)));
+    if (curT1) t1Sel.value = curT1;
+  }
+
+  // Update T2
+  const t2s = t1 ? [...new Set(f.filter(r => r.t1 === t1).map(r => r.t2))].sort((a,b)=>parseFloat(a)-parseFloat(b)) : [];
+  const t2Sel = document.getElementById('spot-t2');
+  t2Sel.innerHTML = '<option value="">请选择 T2 厚度</option>';
+  t2s.forEach(t => t2Sel.add(new Option(t + ' mm', t)));
+}
+
+// 重新绑定联动
+document.getElementById('spot-surface').addEventListener('change', function() {
+  const cat = document.getElementById('spot-category').value;
+  const mat = document.getElementById('spot-material').value;
+  const surf = this.value;
+  let f = SPOT_DATA;
+  if (cat) f = f.filter(r => r.category === cat);
+  if (mat) f = f.filter(r => r.material === mat);
+  if (surf) f = f.filter(r => r.surface === surf);
+  const t1s = [...new Set(f.map(r => r.t1))].sort((a,b)=>parseFloat(a)-parseFloat(b));
+  const t1Sel = document.getElementById('spot-t1');
+  t1Sel.innerHTML = '<option value="">请选择 T1 厚度</option>';
+  t1s.forEach(t => t1Sel.add(new Option(t + ' mm', t)));
+  document.getElementById('spot-t2').innerHTML = '<option value="">请先选择 T1</option>';
+});
+
+function querySpot() {
+  const cat = document.getElementById('spot-category').value;
+  const mat = document.getElementById('spot-material').value;
+  const surf = document.getElementById('spot-surface').value;
+  const t1 = document.getElementById('spot-t1').value;
+  const t2 = document.getElementById('spot-t2').value;
+
+  if (!cat && !mat && !surf && !t1) {
+    alert('请至少选择材料类别和表面处理条件');
+    return;
+  }
+
+  // 精确匹配
+  let results = SPOT_DATA;
+  if (cat) results = results.filter(r => r.category === cat);
+  if (mat) results = results.filter(r => r.material === mat);
+  if (surf) results = results.filter(r => r.surface === surf);
+  if (t1) results = results.filter(r => r.t1 === t1);
+  if (t2) results = results.filter(r => r.t2 === t2);
+
+  // 模糊匹配（放宽条件）
+  if (results.length === 0) {
+    let fuzzy = SPOT_DATA;
+    if (cat) fuzzy = fuzzy.filter(r => r.category === cat);
+    if (mat) fuzzy = fuzzy.filter(r => r.material === mat);
+    results = fuzzy.slice(0, 5);
+  }
+
+  showSpotResults(results, { cat, mat, surf, t1, t2 });
+}
+
+function showSpotResults(results, cond) {
+  const ph = document.getElementById('spot-placeholder');
+  const rd = document.getElementById('spot-result');
+  const panel = document.getElementById('spot-result-panel');
+  panel.style.display = 'block';
+
+  if (results.length === 0) {
+    ph.innerHTML = '<div class="no-result"><div class="no-result-icon">🔍</div><div>未找到匹配数据</div><div style="font-size:12px;color:var(--text-dim);margin-top:8px;">请调整查询条件后重试</div></div>';
+    ph.style.display = 'flex'; rd.style.display = 'none'; return;
+  }
+
+  ph.style.display = 'none'; rd.style.display = 'block';
+
+  const r = results[0];
+  const matchScore = calcSpotScore(r, cond);
+  const badgeClass = matchScore >= 90 ? 'badge-excellent' : matchScore >= 70 ? 'badge-good' : 'badge-fair';
+  const badgeText = matchScore >= 90 ? '精确匹配' : matchScore >= 70 ? '近似匹配' : '参考匹配';
+
+  let html = `
+    <div class="match-header">
+      <div class="match-score">
+        <div class="match-score-num">${matchScore}%</div>
+        <div class="match-score-label">匹配度</div>
+      </div>
+      <div class="match-info">
+        <div class="match-title">${r.category} — ${r.material}</div>
+        <div class="match-desc">
+          表面处理：${r.surface} &nbsp;|&nbsp; T1: ${r.t1}mm &nbsp;|&nbsp; T2: ${r.t2}mm &nbsp;|&nbsp; 总厚: ${r.totalThickness}mm
+        </div>
+      </div>
+      <span class="match-badge ${badgeClass}">${badgeText}</span>
+    </div>
+
+    <div class="params-section">
+      <div class="params-section-title">电极参数</div>
+      <div class="params-grid">
+        ${paramItem('电极直径', r.electrodeDiameter, 'mm')}
+        ${paramItem('电极材料', r.electrodeMaterial, '')}
+        ${paramItem('电极力', r.electrodeForce, 'kN')}
+        ${paramItem('冷却水流量', r.waterFlow, 'L/min')}
+      </div>
+    </div>
+
+    <div class="params-section">
+      <div class="params-section-title">焊接程序参数</div>
+      <div class="params-grid">
+        ${paramItem('预热电流', r.preHeatCurrent, '', true)}
+        ${paramItem('预热时间', r.preHeatTime, '', false)}
+        ${paramItem('冷却时间', r.coolTime, '', false)}
+        ${paramItem('压紧时间', r.squeezeTime, 'ms', true)}
+        ${paramItem('焊接电流 MFDC', r.weldCurrentMFDC, 'kA', true)}
+        ${paramItem('焊接时间 AC', r.weldTimeAC, 'cyc', true)}
+        ${paramItem('焊接时间 MFDC', r.weldTimeMFDC, 'ms', true)}
+        ${paramItem('维持时间', r.holdTime, 'ms')}
+        ${paramItem('回火电流', r.temperCurrent, '')}
+        ${paramItem('回火时间', r.temperTime, '')}
+        ${paramItem('熔核直径', r.nuggetDiameter, 'mm', true)}
+      </div>
+    </div>
+  `;
+
+  if (results.length > 1) {
+    html += `<div class="params-section"><div class="params-section-title">其他匹配结果（共 ${results.length} 条）</div><div class="multi-results">`;
+    results.slice(1).forEach((item, i) => {
+      html += `
+        <div class="result-item">
+          <div class="result-item-header" onclick="toggleResult('spot-extra-${i}')">
+            <span style="font-size:13px;color:var(--text);">${item.category} | ${item.surface} | T1:${item.t1} T2:${item.t2}</span>
+            <span style="font-size:12px;color:var(--text-muted);">▼</span>
+          </div>
+          <div class="result-item-body" id="spot-extra-${i}">
+            <div class="params-grid">
+              ${paramItem('焊接电流 MFDC', item.weldCurrentMFDC, 'kA', true)}
+              ${paramItem('焊接时间 MFDC', item.weldTimeMFDC, 'ms', true)}
+              ${paramItem('电极力', item.electrodeForce, 'kN')}
+              ${paramItem('熔核直径', item.nuggetDiameter, 'mm')}
+            </div>
+          </div>
+        </div>`;
+    });
+    html += '</div></div>';
+  }
+
+  rd.innerHTML = html;
+}
+
+function calcSpotScore(r, cond) {
+  let score = 50;
+  if (cond.cat && r.category === cond.cat) score += 20;
+  if (cond.mat && r.material === cond.mat) score += 15;
+  if (cond.surf && r.surface === cond.surf) score += 10;
+  if (cond.t1 && r.t1 === cond.t1) score += 3;
+  if (cond.t2 && r.t2 === cond.t2) score += 2;
+  return Math.min(score, 100);
+}
+
+function resetSpot() {
+  ['spot-category','spot-material','spot-surface','spot-t1','spot-t2'].forEach(id => {
+    document.getElementById(id).selectedIndex = 0;
+  });
+  initSpot();
+  document.getElementById('spot-result-panel').style.display = 'none';
+  document.getElementById('spot-placeholder').innerHTML = `
+    <div class="placeholder-icon">⚡</div>
+    <div class="placeholder-text">请设置输入条件后点击查询</div>
+    <div class="placeholder-hint">系统将自动匹配最接近的实测参数</div>`;
+  document.getElementById('spot-placeholder').style.display = 'flex';
+  document.getElementById('spot-result').style.display = 'none';
+}
+
+// =============================================
+// 弧焊
+// =============================================
+function initArc() {
+  const mats = [...new Set(ARC_DATA.map(r => r.material))];
+  const sel = document.getElementById('arc-material');
+  sel.innerHTML = '<option value="">请选择母材材料</option>';
+  mats.forEach(m => sel.add(new Option(m, m)));
+}
+
+function updateArcMethods() {
+  const mat = document.getElementById('arc-material').value;
+  const filtered = mat ? ARC_DATA.filter(r => r.material === mat) : [];
+  const methods = [...new Set(filtered.map(r => r.method))];
+  const sel = document.getElementById('arc-method');
+  sel.innerHTML = '<option value="">请选择焊接方法</option>';
+  methods.forEach(m => sel.add(new Option(m, m)));
+  document.getElementById('arc-thickness').innerHTML = '<option value="">请先选择焊接方法</option>';
+}
+
+function updateArcThickness() {
+  const mat = document.getElementById('arc-material').value;
+  const method = document.getElementById('arc-method').value;
+  let filtered = ARC_DATA;
+  if (mat) filtered = filtered.filter(r => r.material === mat);
+  if (method) filtered = filtered.filter(r => r.method === method);
+  const thicks = [...new Set(filtered.map(r => r.thickness))];
+  const sel = document.getElementById('arc-thickness');
+  sel.innerHTML = '<option value="">请选择板厚范围</option>';
+  thicks.forEach(t => sel.add(new Option(t, t)));
+}
+
+function queryArc() {
+  const mat = document.getElementById('arc-material').value;
+  const method = document.getElementById('arc-method').value;
+  const thick = document.getElementById('arc-thickness').value;
+
+  if (!mat) { alert('请至少选择母材材料'); return; }
+
+  let results = ARC_DATA;
+  if (mat) results = results.filter(r => r.material === mat);
+  if (method) results = results.filter(r => r.method === method);
+  if (thick) results = results.filter(r => r.thickness === thick);
+
+  showArcResults(results, { mat, method, thick });
+}
+
+function showArcResults(results, cond) {
+  const ph = document.getElementById('arc-placeholder');
+  const rd = document.getElementById('arc-result');
+  const panel = document.getElementById('arc-result-panel');
+  panel.style.display = 'block';
+
+  if (results.length === 0) {
+    ph.innerHTML = '<div class="no-result"><div class="no-result-icon">🔍</div><div>未找到匹配数据</div></div>';
+    ph.style.display = 'flex'; rd.style.display = 'none'; return;
+  }
+
+  ph.style.display = 'none'; rd.style.display = 'block';
+
+  let html = '';
+  results.forEach((r, i) => {
+    html += `
+      <div style="margin-bottom:${i < results.length-1 ? '16px' : '0'};">
+        <div class="match-header" style="margin-bottom:12px;">
+          <div class="match-info">
+            <div class="match-title">${r.material} — ${r.method}</div>
+            <div class="match-desc">板厚范围：${r.thickness}</div>
+          </div>
+          <span class="match-badge badge-excellent">精确匹配</span>
+        </div>
+        <div class="params-grid arc-result-grid">
+          ${paramItem('焊丝材料', r.wireMaterial, '', true)}
+          ${paramItem('保护气体', r.gasType, '')}
+          ${paramItem('焊接电流/电压', r.currentVoltage, '', true)}
+          ${paramItem('焊接速度', r.speed, '')}
+          ${paramItem('导电嘴距离', r.wireExtension, 'mm')}
+          ${r.note ? paramItem('备注', r.note, '') : ''}
+        </div>
+      </div>
+      ${i < results.length - 1 ? '<hr style="border-color:var(--border-light);margin-bottom:16px;">' : ''}`;
+  });
+
+  rd.innerHTML = html;
+}
+
+function resetArc() {
+  ['arc-material','arc-method','arc-thickness'].forEach(id => {
+    document.getElementById(id).selectedIndex = 0;
+  });
+  initArc();
+  document.getElementById('arc-result-panel').style.display = 'none';
+  document.getElementById('arc-placeholder').innerHTML = `
+    <div class="placeholder-icon">🌀</div>
+    <div class="placeholder-text">请设置输入条件后点击查询</div>
+    <div class="placeholder-hint">根据材料和板厚匹配焊接工艺参数</div>`;
+  document.getElementById('arc-placeholder').style.display = 'flex';
+  document.getElementById('arc-result').style.display = 'none';
+}
+
+// =============================================
+// 凸焊
+// =============================================
+function initProj() {
+  const cats = [...new Set(PROJ_DATA.map(r => r.category))];
+  const sel = document.getElementById('proj-category');
+  sel.innerHTML = '<option value="">请选择凸焊件类型</option>';
+  cats.forEach(c => sel.add(new Option(c, c)));
+}
+
+function updateProjMaterial() {
+  const cat = document.getElementById('proj-category').value;
+  const filtered = cat ? PROJ_DATA.filter(r => r.category === cat) : [];
+  const mats = [...new Set(filtered.map(r => r.material))];
+  const sel = document.getElementById('proj-material');
+  sel.innerHTML = '<option value="">请选择材料</option>';
+  mats.forEach(m => sel.add(new Option(m, m)));
+  document.getElementById('proj-t1').innerHTML = '<option value="">请先选择材料</option>';
+}
+
+function updateProjThickness() {
+  const cat = document.getElementById('proj-category').value;
+  const mat = document.getElementById('proj-material').value;
+  let filtered = PROJ_DATA;
+  if (cat) filtered = filtered.filter(r => r.category === cat);
+  if (mat) filtered = filtered.filter(r => r.material === mat);
+  const t1s = [...new Set(filtered.map(r => r.t1))].sort((a,b)=>parseFloat(a)-parseFloat(b));
+  const sel = document.getElementById('proj-t1');
+  sel.innerHTML = '<option value="">请选择 T1 厚度</option>';
+  t1s.forEach(t => sel.add(new Option(t + ' mm', t)));
+}
+
+function queryProj() {
+  const cat = document.getElementById('proj-category').value;
+  const mat = document.getElementById('proj-material').value;
+  const t1 = document.getElementById('proj-t1').value;
+
+  if (!cat) { alert('请至少选择凸焊件类型'); return; }
+
+  let results = PROJ_DATA;
+  if (cat) results = results.filter(r => r.category === cat);
+  if (mat) results = results.filter(r => r.material === mat);
+  if (t1) results = results.filter(r => r.t1 === t1);
+
+  showProjResults(results);
+}
+
+function showProjResults(results) {
+  const ph = document.getElementById('proj-placeholder');
+  const rd = document.getElementById('proj-result');
+  const panel = document.getElementById('proj-result-panel');
+  panel.style.display = 'block';
+
+  if (results.length === 0) {
+    ph.innerHTML = '<div class="no-result"><div class="no-result-icon">🔍</div><div>未找到匹配数据</div></div>';
+    ph.style.display = 'flex'; rd.style.display = 'none'; return;
+  }
+
+  ph.style.display = 'none'; rd.style.display = 'block';
+
+  const r = results[0];
+  let html = `
+    <div class="match-header">
+      <div class="match-info">
+        <div class="match-title">${r.category}</div>
+        <div class="match-desc">材料：${r.material} &nbsp;|&nbsp; 强度：${r.strength} &nbsp;|&nbsp; 表面：${r.surface}</div>
+      </div>
+      <span class="match-badge badge-excellent">精确匹配</span>
+    </div>
+    <div class="proj-specs">
+      <span class="spec-tag">T1: ${r.t1} mm</span>
+      <span class="spec-tag">T2: ${r.t2} mm</span>
+      <span class="spec-tag">总厚: ${r.totalThickness} mm</span>
+      <span class="spec-tag">电极直径: Ø${r.electrodeDiameter} mm</span>
+    </div>
+
+    <div class="params-section">
+      <div class="params-section-title">焊接参数</div>
+      <div class="params-grid">
+        ${paramItem('电极力', r.electrodeForce, 'kN', true)}
+        ${paramItem('焊接电流 AC', r.weldCurrentAC, 'kA', true)}
+        ${paramItem('焊接电流 MFDC', r.weldCurrentMFDC, 'kA', true)}
+        ${paramItem('焊接时间 AC', r.weldTimeAC, 'ms', true)}
+        ${paramItem('焊接周期', r.weldCycle, 'cyc')}
+        ${paramItem('焊接时间 MFDC', r.weldTimeMFDC, 'ms', true)}
+        ${paramItem('维持时间', r.holdTime, 'ms')}
+        ${paramItem('压紧时间', r.squeezeTime, 'ms')}
+        ${paramItem('熔核直径', r.nuggetDiameter, 'mm', true)}
+      </div>
+    </div>`;
+
+  if (results.length > 1) {
+    html += `<div class="params-section"><div class="params-section-title">其他匹配（共 ${results.length} 条）</div><div class="multi-results">`;
+    results.slice(1).forEach((item, i) => {
+      html += `
+        <div class="result-item">
+          <div class="result-item-header" onclick="toggleResult('proj-extra-${i}')">
+            <span style="font-size:13px;color:var(--text);">${item.category} | T1:${item.t1} | 强度:${item.strength}</span>
+            <span style="font-size:12px;color:var(--text-muted);">▼</span>
+          </div>
+          <div class="result-item-body" id="proj-extra-${i}">
+            <div class="params-grid">
+              ${paramItem('焊接电流 AC', item.weldCurrentAC, 'kA', true)}
+              ${paramItem('焊接电流 MFDC', item.weldCurrentMFDC, 'kA', true)}
+              ${paramItem('电极力', item.electrodeForce, 'kN')}
+              ${paramItem('熔核直径', item.nuggetDiameter, 'mm')}
+            </div>
+          </div>
+        </div>`;
+    });
+    html += '</div></div>';
+  }
+
+  rd.innerHTML = html;
+}
+
+function resetProj() {
+  ['proj-category','proj-material','proj-t1'].forEach(id => {
+    document.getElementById(id).selectedIndex = 0;
+  });
+  initProj();
+  document.getElementById('proj-result-panel').style.display = 'none';
+  document.getElementById('proj-placeholder').innerHTML = `
+    <div class="placeholder-icon">🔩</div>
+    <div class="placeholder-text">请设置输入条件后点击查询</div>
+    <div class="placeholder-hint">根据凸焊件规格匹配工艺参数</div>`;
+  document.getElementById('proj-placeholder').style.display = 'flex';
+  document.getElementById('proj-result').style.display = 'none';
+}
+
+// =============================================
+// 工具函数
+// =============================================
+function paramItem(label, value, unit, highlight) {
+  if (!value && value !== 0) return '';
+  return `
+    <div class="param-item${highlight ? ' highlight' : ''}">
+      <div class="param-label">${label}</div>
+      <div class="param-value">${value}${unit ? '<span class="param-unit">' + unit + '</span>' : ''}</div>
+    </div>`;
+}
+
+function toggleResult(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+
+// =============================================
+// 原始数据库
+// =============================================
+const DB_PAGE_SIZE = 20;
+const dbState = { spot: { page: 1 }, arc: { page: 1 }, proj: { page: 1 } };
+
+function switchDbTab(type, el) {
+  document.querySelectorAll('.db-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.db-content').forEach(c => c.classList.remove('active'));
+  const btn = el || document.querySelector(`.db-tab[onclick*="'${type}'"]`);
+  if (btn) btn.classList.add('active');
+  document.getElementById('db-' + type).classList.add('active');
+}
+
+function initDatabase() {
+  // Spot filters
+  const spotCats = [...new Set(SPOT_DATA.map(r => r.category))];
+  const spotSurfs = [...new Set(SPOT_DATA.map(r => r.surface))];
+  const catSel = document.getElementById('db-spot-filter-cat');
+  spotCats.forEach(c => catSel.add(new Option(c, c)));
+  const surfSel = document.getElementById('db-spot-filter-surf');
+  spotSurfs.forEach(s => surfSel.add(new Option(s, s)));
+
+  // Arc filters
+  const arcMats = [...new Set(ARC_DATA.map(r => r.material))];
+  const arcMethods = [...new Set(ARC_DATA.map(r => r.method))];
+  const arcMatSel = document.getElementById('db-arc-filter-mat');
+  arcMats.forEach(m => arcMatSel.add(new Option(m, m)));
+  const arcMethodSel = document.getElementById('db-arc-filter-method');
+  arcMethods.forEach(m => arcMethodSel.add(new Option(m, m)));
+
+  // Proj filters
+  const projCats = [...new Set(PROJ_DATA.map(r => r.category))];
+  const projCatSel = document.getElementById('db-proj-filter-cat');
+  projCats.forEach(c => projCatSel.add(new Option(c, c)));
+
+  renderSpotTable();
+  renderArcTable();
+  renderProjTable();
+}
+
+function getSpotFiltered() {
+  const cat = document.getElementById('db-spot-filter-cat').value;
+  const surf = document.getElementById('db-spot-filter-surf').value;
+  const q = document.getElementById('db-spot-search').value.toLowerCase();
+  return SPOT_DATA.filter(r => {
+    if (cat && r.category !== cat) return false;
+    if (surf && r.surface !== surf) return false;
+    if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderSpotTable() {
+  dbState.spot.page = 1;
+  updateSpotTable();
+}
+
+function updateSpotTable() {
+  const filtered = getSpotFiltered();
+  const total = filtered.length;
+  const page = dbState.spot.page;
+  const totalPages = Math.ceil(total / DB_PAGE_SIZE);
+  const data = filtered.slice((page-1)*DB_PAGE_SIZE, page*DB_PAGE_SIZE);
+
+  document.getElementById('db-spot-stats').innerHTML = `
+    <div class="stat-chip">总记录 <strong>${SPOT_DATA.length}</strong></div>
+    <div class="stat-chip">当前筛选 <strong>${total}</strong></div>
+    <div class="stat-chip">材料类别 <strong>${new Set(SPOT_DATA.map(r=>r.category)).size}</strong> 种</div>
+    <div class="stat-chip">表面处理 <strong>${new Set(SPOT_DATA.map(r=>r.surface)).size}</strong> 种</div>`;
+
+  const tbody = document.getElementById('db-spot-tbody');
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td class="key-col">${r.category||''}</td>
+      <td>${r.material||''}</td>
+      <td>${r.surface||''}</td>
+      <td class="num-col">${r.t1||''}</td>
+      <td class="num-col">${r.t2||''}</td>
+      <td class="num-col">${r.totalThickness||''}</td>
+      <td class="num-col">${r.electrodeDiameter||''}</td>
+      <td style="max-width:160px;font-size:11px;">${r.electrodeMaterial||''}</td>
+      <td class="num-col">${r.electrodeForce||''}</td>
+      <td>${r.preHeatCurrent||''}</td>
+      <td>${r.preHeatTime||''}</td>
+      <td>${r.coolTime||''}</td>
+      <td class="num-col" style="font-weight:700;color:var(--secondary)">${r.weldCurrentMFDC||''}</td>
+      <td class="num-col">${r.weldTimeAC||''}</td>
+      <td class="num-col" style="font-weight:700;color:var(--secondary)">${r.weldTimeMFDC||''}</td>
+      <td class="num-col">${r.holdTime||''}</td>
+      <td class="num-col">${r.squeezeTime||''}</td>
+      <td>${r.temperCurrent||''}</td>
+      <td>${r.temperTime||''}</td>
+      <td class="num-col">${r.nuggetDiameter||''}</td>
+      <td class="num-col">${r.waterFlow||''}</td>
+    </tr>`).join('');
+
+  renderPagination('db-spot-pag', page, totalPages, 'spot');
+}
+
+function getArcFiltered() {
+  const mat = document.getElementById('db-arc-filter-mat').value;
+  const method = document.getElementById('db-arc-filter-method').value;
+  const q = document.getElementById('db-arc-search').value.toLowerCase();
+  return ARC_DATA.filter(r => {
+    if (mat && r.material !== mat) return false;
+    if (method && r.method !== method) return false;
+    if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderArcTable() {
+  dbState.arc.page = 1;
+  updateArcTable();
+}
+
+function updateArcTable() {
+  const filtered = getArcFiltered();
+  const total = filtered.length;
+  const page = dbState.arc.page;
+  const totalPages = Math.ceil(total / DB_PAGE_SIZE);
+  const data = filtered.slice((page-1)*DB_PAGE_SIZE, page*DB_PAGE_SIZE);
+
+  document.getElementById('db-arc-stats').innerHTML = `
+    <div class="stat-chip">总记录 <strong>${ARC_DATA.length}</strong></div>
+    <div class="stat-chip">当前筛选 <strong>${total}</strong></div>
+    <div class="stat-chip">母材种类 <strong>${new Set(ARC_DATA.map(r=>r.material)).size}</strong> 种</div>
+    <div class="stat-chip">焊接方法 <strong>${new Set(ARC_DATA.map(r=>r.method)).size}</strong> 种</div>`;
+
+  const tbody = document.getElementById('db-arc-tbody');
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td class="key-col">${r.material||''}</td>
+      <td>${r.method||''}</td>
+      <td class="num-col">${r.thickness||''}</td>
+      <td style="font-size:11px;">${r.wireMaterial||''}</td>
+      <td style="font-size:11px;">${r.gasType||''}</td>
+      <td class="num-col" style="font-weight:700;color:var(--secondary)">${r.currentVoltage||''}</td>
+      <td class="num-col">${r.speed||''}</td>
+      <td class="num-col">${r.wireExtension||''}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${r.note||'—'}</td>
+    </tr>`).join('');
+
+  renderPagination('db-arc-pag', page, totalPages, 'arc');
+}
+
+function getProjFiltered() {
+  const cat = document.getElementById('db-proj-filter-cat').value;
+  const q = document.getElementById('db-proj-search').value.toLowerCase();
+  return PROJ_DATA.filter(r => {
+    if (cat && r.category !== cat) return false;
+    if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderProjTable() {
+  dbState.proj.page = 1;
+  updateProjTable();
+}
+
+function updateProjTable() {
+  const filtered = getProjFiltered();
+  const total = filtered.length;
+  const page = dbState.proj.page;
+  const totalPages = Math.ceil(total / DB_PAGE_SIZE);
+  const data = filtered.slice((page-1)*DB_PAGE_SIZE, page*DB_PAGE_SIZE);
+
+  document.getElementById('db-proj-stats').innerHTML = `
+    <div class="stat-chip">总记录 <strong>${PROJ_DATA.length}</strong></div>
+    <div class="stat-chip">当前筛选 <strong>${total}</strong></div>
+    <div class="stat-chip">凸焊件类型 <strong>${new Set(PROJ_DATA.map(r=>r.category)).size}</strong> 种</div>`;
+
+  const tbody = document.getElementById('db-proj-tbody');
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td class="key-col">${r.category||''}</td>
+      <td>${r.material||''}</td>
+      <td>${r.strength||''}</td>
+      <td>${r.surface||''}</td>
+      <td class="num-col">${r.t1||''}</td>
+      <td class="num-col">${r.totalThickness||''}</td>
+      <td class="num-col">${r.electrodeDiameter||''}</td>
+      <td class="num-col">${r.electrodeForce||''}</td>
+      <td class="num-col" style="font-weight:700;color:var(--secondary)">${r.weldCurrentAC||''}</td>
+      <td class="num-col" style="font-weight:700;color:var(--secondary)">${r.weldCurrentMFDC||''}</td>
+      <td class="num-col">${r.weldTimeAC||''}</td>
+      <td class="num-col">${r.weldCycle||''}</td>
+      <td class="num-col">${r.weldTimeMFDC||''}</td>
+      <td class="num-col">${r.holdTime||''}</td>
+      <td class="num-col">${r.squeezeTime||''}</td>
+      <td class="num-col">${r.nuggetDiameter||''}</td>
+    </tr>`).join('');
+
+  renderPagination('db-proj-pag', page, totalPages, 'proj');
+}
+
+function renderPagination(containerId, page, totalPages, type) {
+  const container = document.getElementById(containerId);
+  if (totalPages <= 1) { container.innerHTML = ''; return; }
+  container.innerHTML = `
+    <button class="pag-btn" onclick="goPage('${type}',${page-1})" ${page<=1?'disabled':''}>‹ 上一页</button>
+    <span class="pag-info">第 ${page} / ${totalPages} 页</span>
+    <div class="pag-jump">
+      跳转至 <input type="number" min="1" max="${totalPages}" value="${page}"
+        onchange="goPage('${type}',parseInt(this.value))"> 页
+    </div>
+    <button class="pag-btn" onclick="goPage('${type}',${page+1})" ${page>=totalPages?'disabled':''}>下一页 ›</button>`;
+}
+
+function goPage(type, page) {
+  const filtered = type === 'spot' ? getSpotFiltered() : type === 'arc' ? getArcFiltered() : getProjFiltered();
+  const totalPages = Math.ceil(filtered.length / DB_PAGE_SIZE);
+  dbState[type].page = Math.max(1, Math.min(page, totalPages));
+  if (type === 'spot') updateSpotTable();
+  else if (type === 'arc') updateArcTable();
+  else updateProjTable();
+}
+
+// =============================================
+// 初始化
+// =============================================
+document.addEventListener('DOMContentLoaded', () => {
+  initHomeStats();
+  initSpot();
+  initArc();
+  initProj();
+  initDatabase();
+});
+// =============================================
+// 新增数据 — 弹窗控制
+// =============================================
+function openAddModal(type) {
+  // 切换到对应标签页
+  switchDbTab(type);
+  document.getElementById('modal-' + type).style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function closeModalOutside(e, id) {
+  if (e.target === e.currentTarget) closeModal(id);
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = '✓ ' + msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// =============================================
+// 新增数据 — 点焊
+// =============================================
+function submitAddSpot() {
+  const get = id => document.getElementById(id).value.trim();
+  const category = get('add-spot-category');
+  const material = get('add-spot-material');
+  const surface = get('add-spot-surface');
+  const t1 = get('add-spot-t1');
+  const t2 = get('add-spot-t2');
+
+  if (!category || !material || !surface || !t1 || !t2) {
+    alert('请填写必填项（带 * 的字段）');
+    return;
+  }
+
+  const totalT = get('add-spot-totalThickness') || String(parseFloat(t1) + parseFloat(t2));
+
+  const row = {
+    category, material, surface, t1, t2,
+    totalThickness: totalT,
+    electrodeDiameter: get('add-spot-electrodeDiameter') || '6-11',
+    electrodeMaterial: get('add-spot-electrodeMaterial'),
+    electrodeForce: get('add-spot-electrodeForce'),
+    preHeatCurrent: get('add-spot-preHeatCurrent'),
+    preHeatTime: get('add-spot-preHeatTime'),
+    coolTime: get('add-spot-coolTime'),
+    weldCurrentMFDC: get('add-spot-weldCurrentMFDC'),
+    weldTimeAC: get('add-spot-weldTimeAC'),
+    weldTimeMFDC: get('add-spot-weldTimeMFDC'),
+    holdTime: get('add-spot-holdTime'),
+    squeezeTime: get('add-spot-squeezeTime'),
+    temperCurrent: get('add-spot-temperCurrent'),
+    temperTime: get('add-spot-temperTime'),
+    nuggetDiameter: get('add-spot-nuggetDiameter'),
+    waterFlow: get('add-spot-waterFlow'),
+  };
+
+  SPOT_DATA.push(row);
+
+  // 刷新筛选器和表格
+  const catSel = document.getElementById('db-spot-filter-cat');
+  if (![...catSel.options].map(o=>o.value).includes(category)) {
+    catSel.add(new Option(category, category));
+  }
+  const surfSel = document.getElementById('db-spot-filter-surf');
+  if (![...surfSel.options].map(o=>o.value).includes(surface)) {
+    surfSel.add(new Option(surface, surface));
+  }
+
+  // 刷新查询模块下拉
+  initSpot();
+
+  renderSpotTable();
+  closeModal('modal-spot');
+  // 清空表单
+  document.querySelectorAll('#modal-spot .form-input').forEach(el => el.value = '');
+  showToast('点焊数据新增成功，共 ' + SPOT_DATA.length + ' 条');
+
+  // 更新首页统计
+  initHomeStats();
+}
+
+// =============================================
+// 新增数据 — 弧焊
+// =============================================
+function submitAddArc() {
+  const get = id => document.getElementById(id).value.trim();
+  const material = get('add-arc-material');
+  const method = get('add-arc-method');
+  const thickness = get('add-arc-thickness');
+  const currentVoltage = get('add-arc-currentVoltage');
+
+  if (!material || !method || !thickness || !currentVoltage) {
+    alert('请填写必填项（带 * 的字段）');
+    return;
+  }
+
+  const row = {
+    material, method, thickness,
+    wireMaterial: get('add-arc-wireMaterial'),
+    gasType: get('add-arc-gasType'),
+    currentVoltage,
+    speed: get('add-arc-speed'),
+    wireExtension: get('add-arc-wireExtension'),
+    note: get('add-arc-note') || null,
+  };
+
+  ARC_DATA.push(row);
+
+  // 刷新筛选器
+  const matSel = document.getElementById('db-arc-filter-mat');
+  if (![...matSel.options].map(o=>o.value).includes(material)) {
+    matSel.add(new Option(material, material));
+  }
+  const methSel = document.getElementById('db-arc-filter-method');
+  if (![...methSel.options].map(o=>o.value).includes(method)) {
+    methSel.add(new Option(method, method));
+  }
+
+  initArc();
+  renderArcTable();
+  closeModal('modal-arc');
+  document.querySelectorAll('#modal-arc .form-input').forEach(el => el.value = '');
+  showToast('弧焊数据新增成功，共 ' + ARC_DATA.length + ' 条');
+  initHomeStats();
+}
+
+// =============================================
+// 新增数据 — 凸焊
+// =============================================
+function submitAddProj() {
+  const get = id => document.getElementById(id).value.trim();
+  const category = get('add-proj-category');
+  const material = get('add-proj-material');
+  const t1 = get('add-proj-t1');
+  const weldCurrentAC = get('add-proj-weldCurrentAC');
+  const weldCurrentMFDC = get('add-proj-weldCurrentMFDC');
+
+  if (!category || !material || !t1 || !weldCurrentAC || !weldCurrentMFDC) {
+    alert('请填写必填项（带 * 的字段）');
+    return;
+  }
+
+  const t2v = get('add-proj-t2') || t1;
+  const totalT = get('add-proj-totalThickness') || String(parseFloat(t1) + parseFloat(t2v));
+
+  const row = {
+    category, material,
+    strength: get('add-proj-strength'),
+    surface: get('add-proj-surface'),
+    t1, t2: t2v, totalThickness: totalT,
+    electrodeDiameter: get('add-proj-electrodeDiameter'),
+    electrodeForce: get('add-proj-electrodeForce'),
+    weldCurrentAC, weldCurrentMFDC,
+    weldTimeAC: get('add-proj-weldTimeAC'),
+    weldCycle: get('add-proj-weldCycle'),
+    weldTimeMFDC: get('add-proj-weldTimeMFDC'),
+    holdTime: get('add-proj-holdTime'),
+    squeezeTime: get('add-proj-squeezeTime'),
+    nuggetDiameter: get('add-proj-nuggetDiameter'),
+  };
+
+  PROJ_DATA.push(row);
+
+  const catSel = document.getElementById('db-proj-filter-cat');
+  if (![...catSel.options].map(o=>o.value).includes(category)) {
+    catSel.add(new Option(category, category));
+  }
+
+  initProj();
+  renderProjTable();
+  closeModal('modal-proj');
+  document.querySelectorAll('#modal-proj .form-input').forEach(el => el.value = '');
+  showToast('凸焊数据新增成功，共 ' + PROJ_DATA.length + ' 条');
+  initHomeStats();
+}
+
+</script>
+</body>
+</html>
